@@ -1,0 +1,69 @@
+@startuml
+title SD5 - Créer une salle et sa configuration
+autonumber
+
+actor Administrateur as Admin
+boundary "GestionSalle.jsp" as JSP
+control "SalleServlet" as Servlet
+entity "salle : Salle" as SalleEntity
+entity "ConfigurationSalleDAO" as ConfigDAO
+entity "SalleDAO" as SalleDAO
+entity "SiegeDAO" as SiegeDAO
+database "Base de données" as BDD
+
+Admin -> JSP : Ouvrir la création de salle
+JSP --> Admin : Afficher formulaire
+Admin -> JSP : Saisir nom, type et paramètres de configuration globale
+Admin -> JSP : Définir le nombre de rangées et sièges par rangée
+JSP -> Servlet : POST (donneesSalle, donneesConfig, detailsRangees)
+
+note right of Servlet
+  Création des objets métier en mémoire.
+end note
+
+Servlet -> Servlet : config = new ConfigurationSalle(...)
+Servlet -> SalleEntity ** : new Salle(nom, typeSalle)
+
+Servlet -> SalleEntity : appliquerConfiguration(config, detailsRangees)
+activate SalleEntity
+
+loop Pour chaque rangée définie
+    SalleEntity -> SalleEntity : Calculer l'élévation (Y) de la rangée
+    loop Pour chaque siège de la rangée
+        SalleEntity -> SalleEntity : Créer objet Siege (incluant lettre rangée, X, Y, Z, angle)
+    end
+end
+SalleEntity --> Servlet : Objet Salle prêt (contenant ses Sièges)
+deactivate SalleEntity
+
+Servlet --> JSP : Transmettre l'objet Salle en mémoire
+JSP --> Admin : Afficher l'aperçu 3D interactif
+
+Admin -> JSP : Valider la création définitive de la salle
+JSP -> Servlet : POST /confirmer-creation
+
+note right of Servlet
+  Persistance en base : la lettre et la position
+  de la rangée sont sauvegardées directement
+  dans la table Siege pour optimiser la BDD.
+end note
+
+Servlet -> BDD : beginTransaction()
+
+Servlet -> ConfigDAO : enregistrer(config)
+ConfigDAO -> BDD : INSERT configuration_salle
+BDD --> ConfigDAO : configId
+
+Servlet -> SalleDAO : enregistrer(salle, configId)
+SalleDAO -> BDD : INSERT salle
+BDD --> SalleDAO : salleId
+
+loop Pour chaque Siege de la Salle
+    Servlet -> SiegeDAO : enregistrer(siege, salleId)
+    SiegeDAO -> BDD : INSERT siege (inclut lettre_rangee et coordonneesY de la classe rangee)
+end
+
+Servlet -> BDD : commitTransaction()
+Servlet --> JSP : Redirection avec succès
+JSP --> Admin : Afficher "Salle et configuration créées avec succès"
+@enduml

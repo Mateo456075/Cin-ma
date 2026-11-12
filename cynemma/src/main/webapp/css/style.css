@@ -1,0 +1,1480 @@
+:root {
+    color-scheme: dark;
+
+    /* Noirs : neutres et chauds, pas bleutés (noir de salle) */
+    --color-background: #08080a;
+    --color-surface: #111114;
+    --color-surface-raised: #1a1a1e;
+
+    /* Ivoire de papier, plus doux que le blanc pur */
+    --color-text: #f2eee6;
+    --color-muted: #b4aea3;
+
+    /* Filets */
+    --color-line: rgb(242 238 230 / 14%);
+    --color-line-strong: #7a756c;
+    --color-border: #6f6a61;
+
+    /* La lumière */
+    --color-accent: #e5a93d;
+    --color-accent-hover: #f3bb59;
+    --color-accent-contrast: #17130b;
+
+    --color-danger: #ff746c;
+    --color-success: #7bdca5;
+    --color-info: #9dc9ff;
+
+    /* Typographie : serif d'affiche + sans système */
+    --font-display: "Didot", "Bodoni MT", "Bodoni 72", "Iowan Old Style",
+        "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+
+    /* Espacements */
+    --space-1: 0.5rem;
+    --space-2: 0.75rem;
+    --space-3: 1rem;
+    --space-4: 1.5rem;
+    --space-5: 2rem;
+    --space-6: 3rem;
+
+    /* Rayons : droit pour regarder, arrondi pour toucher */
+    --radius-print: 2px;
+    --radius-sm: 0.625rem;
+    --radius-md: 0.875rem;
+    --radius-lg: 1.125rem;
+
+    /* Mouvement : une courbe, trois durées */
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --t-fast: 140ms;
+    --t-base: 280ms;
+    --t-slow: 800ms;
+    --transition-fast: var(--t-fast) var(--ease);
+
+    /* Motifs récurrents */
+    --perforation: repeating-linear-gradient(
+        90deg,
+        rgb(242 238 230 / 16%) 0 0.75rem,
+        transparent 0.75rem 1.5rem
+    );
+}
+
+/* ---------- 2. Base ---------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    min-width: 20rem;
+    min-height: 100%;
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    display: flex;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    font-family: var(--font-body);
+}
+
+::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+}
+
+.site-shell {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.skip-link {
+    position: fixed;
+    z-index: 200;
+    top: var(--space-2);
+    left: var(--space-2);
+    transform: translateY(-160%);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    font-weight: 700;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+/* ---------- 3. Typographie ---------- */
+h1,
+h2,
+h3 {
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 1.1;
+    text-wrap: balance;
+}
+
+h1 {
+    margin: 0 0 var(--space-3);
+    font-size: clamp(2.25rem, 6vw, 4rem);
+    letter-spacing: -0.03em;
+}
+
+h2 {
+    margin: 0 0 var(--space-3);
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    letter-spacing: -0.02em;
+}
+
+h3 {
+    font-size: 1.25rem;
+}
+
+p {
+    margin-block: 0 var(--space-3);
+    text-wrap: pretty;
+}
+
+a {
+    color: var(--color-accent);
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+}
+
+a:hover {
+    color: var(--color-accent-hover);
+}
+
+/* Étiquette de générique : petite, espacée, précédée d'un filet doré */
+.eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 var(--space-3);
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.eyebrow::before {
+    content: "";
+    width: 2rem;
+    height: 1px;
+    background: var(--color-accent);
+}
+
+/* ---------- 4. En-tête : le seul verre du site ---------- */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-4);
+    padding: 0.25rem clamp(1rem, 4vw, 3.5rem);
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-background);
+    view-transition-name: site-header;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .site-header {
+        background: rgb(8 8 10 / 74%);
+        -webkit-backdrop-filter: saturate(150%) blur(16px);
+        backdrop-filter: saturate(150%) blur(16px);
+    }
+}
+
+.site-brand,
+.site-nav a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    text-decoration: none;
+}
+
+/* Marque : serif en capitales espacées + voyant de projecteur allumé */
+.site-brand {
+    gap: 0.75rem;
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.site-brand:hover {
+    color: var(--color-text);
+}
+
+.site-brand::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+    box-shadow: 0 0 0.75rem 0.15rem rgb(229 169 61 / 55%);
+}
+
+.site-nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Liens : texte seul, trait doré qui se déploie depuis le centre */
+.site-nav a:not(.btn) {
+    position: relative;
+    padding: 0.5rem 0.85rem;
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transition: color var(--transition-fast);
+}
+
+.site-nav a:not(.btn)::after {
+    content: "";
+    position: absolute;
+    right: 0.85rem;
+    bottom: 0.5rem;
+    left: 0.85rem;
+    height: 1px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transition: transform var(--t-base) var(--ease);
+}
+
+.site-nav a:not(.btn):hover,
+.site-nav a:not(.btn):focus-visible,
+.site-nav a[aria-current="page"] {
+    color: var(--color-text);
+}
+
+.site-nav a:not(.btn):hover::after,
+.site-nav a:not(.btn):focus-visible::after,
+.site-nav a[aria-current="page"]::after {
+    transform: scaleX(1);
+}
+
+main,
+.page-content {
+    width: min(100% - 2rem, 74rem);
+    flex: 1;
+    margin-inline: auto;
+}
+
+.page-content {
+    padding-block: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+/* ---------- 5. Accueil : l'ouverture ---------- */
+/* Sans boîte : deux filets, un format panoramique, des repères de coupe */
+.cinema-hero {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    min-height: clamp(26rem, 56vw, 40rem);
+    grid-template-columns: minmax(0, 1.25fr) minmax(12rem, 0.75fr);
+    align-items: end;
+    gap: clamp(1rem, 4vw, 3rem);
+    overflow: hidden;
+    padding: clamp(2rem, 6vw, 4.5rem) clamp(0.5rem, 3vw, 2rem);
+    border-block: 1px solid var(--color-line);
+    /* Une seule source de lumière : l'écran */
+    background: radial-gradient(ellipse 45% 60% at 78% 38%, rgb(229 169 61 / 13%), transparent 70%);
+}
+
+/* Repères de coupe d'une affiche imprimée */
+.cinema-hero::before {
+    --mark: rgb(242 238 230 / 38%);
+    content: "";
+    position: absolute;
+    inset: 0.75rem;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--mark), var(--mark)) 0 0 / 14px 1px,
+        linear-gradient(var(--mark), var(--mark)) 0 0 / 1px 14px,
+        linear-gradient(var(--mark), var(--mark)) 100% 0 / 14px 1px,
+        linear-gradient(var(--mark), var(--mark)) 100% 0 / 1px 14px,
+        linear-gradient(var(--mark), var(--mark)) 0 100% / 14px 1px,
+        linear-gradient(var(--mark), var(--mark)) 0 100% / 1px 14px,
+        linear-gradient(var(--mark), var(--mark)) 100% 100% / 14px 1px,
+        linear-gradient(var(--mark), var(--mark)) 100% 100% / 1px 14px;
+    background-repeat: no-repeat;
+}
+
+/* Grain de pellicule */
+.cinema-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.hero-copy {
+    position: relative;
+    z-index: 2;
+    max-width: 44rem;
+}
+
+/* Le titre est l'image : très grand, serré, il empiète sur l'écran */
+.hero-copy h1 {
+    max-width: 9ch;
+    margin-bottom: var(--space-4);
+    font-size: clamp(3.25rem, 10vw, 8rem);
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+}
+
+.hero-description {
+    max-width: 28rem;
+    margin-bottom: var(--space-4);
+    padding-left: var(--space-3);
+    border-left: 1px solid var(--color-line-strong);
+    color: var(--color-muted);
+    font-size: clamp(1rem, 1.6vw, 1.125rem);
+}
+
+/* ---------- 6. Illustration CSS : la salle ---------- */
+.hero-visual {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 18rem;
+    perspective: 800px;
+    padding-bottom: 1rem;
+}
+
+.theater-screen {
+    position: absolute;
+    top: 6%;
+    z-index: 2;
+    width: 82%;
+    height: 42%;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-print);
+    background: linear-gradient(135deg, #060607 0%, #151519 55%, rgb(229 169 61 / 30%) 100%);
+    box-shadow: 0 0 4rem rgb(229 169 61 / 20%), inset 0 0 1.5rem rgb(0 0 0 / 85%);
+}
+
+.theater-beam {
+    position: absolute;
+    top: 48%;
+    z-index: 1;
+    width: 130%;
+    height: 52%;
+    background: linear-gradient(to bottom, rgb(229 169 61 / 17%), transparent 88%);
+    clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
+    pointer-events: none;
+}
+
+.theater-seats {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.4rem;
+    transform: rotateX(25deg);
+    transform-origin: bottom center;
+}
+
+.seat-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.seat {
+    width: clamp(1.2rem, 3vw, 2.2rem);
+    height: clamp(1rem, 2.5vw, 1.8rem);
+    border: 1px solid var(--color-border);
+    border-bottom: 0;
+    border-radius: 0.6rem 0.6rem 0 0;
+    background: linear-gradient(to bottom, var(--color-surface-raised), var(--color-background));
+}
+
+/* Les rangées proches de l'écran sont éclairées, les autres s'éteignent */
+.seat-row:first-child .seat {
+    border-top-color: rgb(229 169 61 / 70%);
+    box-shadow: inset 0 2px 6px rgb(229 169 61 / 20%);
+}
+
+.seat-row:nth-child(2) .seat {
+    border-top-color: rgb(229 169 61 / 32%);
+}
+
+/* ---------- 7. Sections : chacune se compose ---------- */
+main {
+    counter-reset: section;
+}
+
+.catalogue-section {
+    position: relative;
+    padding-top: clamp(4rem, 9vw, 7rem);
+    scroll-margin-top: 5rem;
+    counter-increment: section;
+}
+
+/* Perforations de pellicule : le séparateur de section */
+.catalogue-section::before {
+    content: "";
+    position: absolute;
+    top: clamp(1.5rem, 4vw, 3rem);
+    right: 0;
+    left: 0;
+    height: 0.5rem;
+    background: var(--perforation);
+}
+
+/* Composition asymétrique : grand titre à gauche, texte étroit à droite */
+.section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.5fr);
+    align-items: end;
+    gap: var(--space-3) var(--space-5);
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-line);
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+}
+
+/* Numéro de séquence, masqué aux lecteurs d'écran */
+.section-heading h2::before {
+    content: counter(section, decimal-leading-zero);
+    content: counter(section, decimal-leading-zero) / "";
+    display: block;
+    margin-bottom: var(--space-2);
+    color: var(--color-muted);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+}
+
+.section-description {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.95rem;
+}
+
+/* Pages internes : titre à gauche, actions à droite, un filet dessous */
+.page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-line);
+}
+
+.page-heading h1 {
+    margin: 0;
+}
+
+/* ---------- 8. Panneaux (plats, filets, coins droits) ---------- */
+.card,
+.form-container {
+    min-width: 0;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-print);
+    background: var(--color-surface);
+}
+
+.form-container {
+    width: min(100%, 40rem);
+    margin: 0 auto;
+    padding: var(--space-4) 0 0;
+    border-width: 1px 0 0;
+    border-color: var(--color-text);
+    background: none;
+}
+
+.form-container h1 {
+    font-size: clamp(2.25rem, 6vw, 3.75rem);
+    line-height: 1;
+}
+
+.form-intro,
+.text-muted {
+    color: var(--color-muted);
+}
+
+/* Accueil connecté : décalé, aéré, sans boîte */
+.welcome-card {
+    max-width: 40rem;
+    margin: clamp(2rem, 8vw, 6rem) 0 0 clamp(0rem, 8vw, 6rem);
+    padding: var(--space-4) 0 0;
+    border-width: 1px 0 0;
+    background: none;
+    text-align: left;
+}
+
+.welcome-card h1 {
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    line-height: 0.95;
+}
+
+/* ---------- 9. Catalogue : les affiches ---------- */
+.films-container {
+    --stagger: 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+    gap: var(--space-6) var(--space-4);
+    margin-top: var(--space-4);
+    counter-reset: film;
+}
+
+.film-card {
+    position: relative;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    counter-increment: film;
+    transition: transform var(--t-base) var(--ease);
+}
+
+.film-card a {
+    display: block;
+    height: 100%;
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+/* L'affiche : bord presque droit, liseré fin comme un tirage papier */
+.film-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-print);
+    background: var(--color-surface-raised);
+    outline: 1px solid rgb(242 238 230 / 12%);
+    outline-offset: -1px;
+    box-shadow: 0 1.25rem 2rem -1rem rgb(0 0 0 / 80%);
+    object-fit: cover;
+    transition: filter var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+}
+
+.film-card-content {
+    padding: var(--space-2) 0 0;
+}
+
+/* Légende : numéro de séquence + titre en serif + métadonnées discrètes */
+.film-card h2,
+.film-card h3 {
+    margin: var(--space-2) 0 0;
+    color: var(--color-text);
+    font-size: 1.3rem;
+    line-height: 1.15;
+}
+
+.film-card h2::before,
+.film-card h3::before {
+    content: "N° " counter(film, decimal-leading-zero);
+    content: "N° " counter(film, decimal-leading-zero) / "";
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--color-muted);
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+}
+
+.film-card p {
+    margin: 0.35rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+}
+
+.film-card a:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 6px;
+}
+
+.film-card a:active img {
+    transform: scale(0.98);
+}
+
+/* Grille décalée : une affiche sur deux « descend », comme accrochées au hasard */
+@media (min-width: 40rem) {
+    .films-container {
+        padding-bottom: var(--stagger);
+    }
+
+    .films-container > .film-card:nth-child(even) {
+        translate: 0 var(--stagger);
+    }
+}
+
+/* Catalogue d'accueil : la première affiche est mise en scène sur 2×2 */
+@media (min-width: 48rem) {
+    .catalogue-section .films-container > .film-card:first-child {
+        grid-column: span 2;
+        grid-row: span 2;
+        translate: none;
+    }
+
+    .catalogue-section .films-container > .film-card:first-child h2,
+    .catalogue-section .films-container > .film-card:first-child h3 {
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+    }
+}
+
+/* « Extinction des lumières » : survoler une affiche assombrit les autres.
+   Seules les images s'assombrissent, jamais le texte (contraste préservé). */
+@media (hover: hover) {
+    .film-card:not(.film-card-static):hover {
+        transform: translateY(-6px);
+    }
+
+    .film-card:not(.film-card-static):hover img {
+        box-shadow: 0 2rem 3.5rem -1.5rem rgb(229 169 61 / 35%);
+    }
+
+    .films-container:has(.film-card:hover) .film-card:not(:hover) img {
+        filter: brightness(0.45) saturate(0.7);
+    }
+}
+
+.films-container:has(.film-card a:focus-visible) .film-card:not(:focus-within) img {
+    filter: brightness(0.55);
+}
+
+/* Apparition des affiches au défilement (amélioration progressive) */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .film-card {
+            animation: poster-in linear backwards;
+            animation-timeline: view();
+            animation-range: entry 0% entry 45%;
+        }
+    }
+}
+
+@keyframes poster-in {
+    from {
+        opacity: 0;
+        scale: 0.97;
+    }
+}
+
+/* ---------- 10. Tableau de bord : un index, pas une grille de cartes ---------- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--color-line);
+}
+
+.dashboard-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    column-gap: var(--space-3);
+    align-items: center;
+    min-height: 0;
+    padding: var(--space-4) var(--space-1);
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    border-radius: 0;
+    background: none;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: padding var(--t-base) var(--ease);
+}
+
+.dashboard-card:hover {
+    color: var(--color-text);
+}
+
+.dashboard-card > * {
+    grid-column: 2;
+}
+
+.dashboard-icon {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    color: var(--color-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.dashboard-card h2 {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    letter-spacing: -0.02em;
+}
+
+.dashboard-card p {
+    margin: 0.15rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.95rem;
+}
+
+/* Flèche décorative, ignorée des lecteurs d'écran */
+.dashboard-card::after {
+    content: "→";
+    content: "→" / "";
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    color: var(--color-muted);
+    font-size: 1.5rem;
+    transition: transform var(--t-base) var(--ease), color var(--transition-fast);
+}
+
+/* Trait de lumière qui parcourt la ligne */
+.dashboard-card::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 1px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--t-slow) var(--ease);
+}
+
+.dashboard-card:hover::before,
+.dashboard-card:focus-visible::before {
+    transform: scaleX(1);
+}
+
+.dashboard-card:hover,
+.dashboard-card:focus-visible {
+    padding-left: var(--space-3);
+}
+
+.dashboard-card:hover .dashboard-icon,
+.dashboard-card:focus-visible .dashboard-icon,
+.dashboard-card:hover::after,
+.dashboard-card:focus-visible::after {
+    color: var(--color-accent);
+}
+
+.dashboard-card:hover::after,
+.dashboard-card:focus-visible::after {
+    transform: translateX(0.4rem);
+}
+
+/* ---------- 11. Tableaux : dense, fonctionnel, au trait ---------- */
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-color: var(--color-border) var(--color-background);
+}
+
+/* Sans panneau : seuls deux filets encadrent les données */
+.table-container.card {
+    padding: var(--space-2) 0;
+    border-width: 1px 0;
+    border-radius: 0;
+    background: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+}
+
+caption {
+    padding: 0 0 var(--space-2);
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    text-align: left;
+}
+
+th,
+td {
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+    vertical-align: middle;
+}
+
+th {
+    border-bottom-color: var(--color-line-strong);
+    color: var(--color-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+tbody tr:hover {
+    background: rgb(242 238 230 / 4%);
+}
+
+/* La ligne survolée est « éclairée » par un trait doré */
+tbody tr:hover td:first-child {
+    box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.table-poster {
+    display: block;
+    width: 3.5rem;
+    max-height: 5.25rem;
+    border-radius: var(--radius-print);
+    background: var(--color-surface-raised);
+    outline: 1px solid rgb(242 238 230 / 12%);
+    outline-offset: -1px;
+    object-fit: cover;
+}
+
+/* Statut : un point + du texte (la couleur n'est jamais seule porteuse du sens) */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.status::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-muted);
+}
+
+.status-success::before { background: var(--color-success); }
+.status-danger::before { background: var(--color-danger); }
+.status-info::before { background: var(--color-info); }
+
+/* ---------- 12. Boutons : ce qu'on touche est arrondi ---------- */
+.table-actions,
+.actions,
+.nav-links,
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.form-actions {
+    margin-top: var(--space-4);
+}
+
+.actions,
+.nav-links {
+    justify-content: center;
+    margin-block: var(--space-3);
+}
+
+.table-actions form {
+    margin: 0;
+}
+
+/* Action principale : or plat. Pas de dégradé, pas de halo. */
+.btn,
+button,
+input[type="submit"],
+input[type="reset"] {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn:hover,
+button:hover,
+input[type="submit"]:hover,
+input[type="reset"]:hover {
+    background: var(--color-accent-hover);
+    color: var(--color-accent-contrast);
+}
+
+/* Action secondaire : simple contour d'ivoire */
+.btn-secondary {
+    border-color: rgb(242 238 230 / 40%);
+    background: transparent;
+    color: var(--color-text);
+}
+
+.btn-secondary:hover {
+    border-color: var(--color-text);
+    background: rgb(242 238 230 / 8%);
+    color: var(--color-text);
+}
+
+.btn-danger {
+    border-color: #9b4542;
+    background: transparent;
+    color: #ffb1ab;
+}
+
+.btn-danger:hover {
+    border-color: var(--color-danger);
+    background: #3a2021;
+    color: #fff3f1;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+.btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Retour tactile : la matière s'enfonce */
+.btn:active,
+button:active,
+input[type="submit"]:active,
+input[type="reset"]:active {
+    transform: scale(0.97);
+}
+
+/* ---------- 13. Formulaires ---------- */
+label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+input:not([type="submit"]):not([type="reset"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin: 0 0 var(--space-4);
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+input:not([type="submit"]):not([type="reset"]):not([type="hidden"]):hover,
+select:hover,
+textarea:hover {
+    border-color: var(--color-muted);
+}
+
+/* Champ actif = champ éclairé */
+input:not([type="submit"]):not([type="reset"]):not([type="hidden"]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--color-accent);
+    background: var(--color-surface-raised);
+}
+
+input[type="file"] {
+    padding: 0.5rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+}
+
+select {
+    color-scheme: dark;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--color-accent);
+}
+
+input:user-invalid,
+select:user-invalid,
+textarea:user-invalid {
+    border-color: var(--color-danger);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 var(--space-3);
+}
+
+.form-hint {
+    margin: -0.75rem 0 var(--space-4);
+    color: var(--color-muted);
+    font-size: 0.875rem;
+}
+
+/* ---------- 14. Messages : une barre latérale, pas une boîte ---------- */
+.error-message,
+.success-message,
+.info-message {
+    margin-block: var(--space-3);
+    padding: 0.85rem 1rem;
+    border: 0;
+    border-left: 3px solid;
+    border-radius: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.error-message {
+    border-color: var(--color-danger);
+    background: #231517;
+    color: #ffaaa4;
+}
+
+.success-message {
+    border-color: var(--color-success);
+    background: #14221b;
+    color: #a4efc2;
+}
+
+.info-message {
+    border-color: var(--color-info);
+    background: #141e29;
+    color: #b7d7ff;
+}
+
+/* ---------- 15. Récapitulatif = billet de cinéma ---------- */
+/* Talon perforé à gauche, encoches haut et bas sur la ligne de déchirure */
+.booking-summary {
+    --tear-x: 1.25rem;
+    --notch: 0.6rem;
+    margin-block: var(--space-4);
+    padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--tear-x) + var(--space-4));
+    border-radius: var(--radius-print);
+    background:
+        repeating-linear-gradient(to bottom, rgb(242 238 230 / 35%) 0 6px, transparent 6px 12px)
+            var(--tear-x) 0 / 1px 100% no-repeat,
+        var(--color-surface-raised);
+    -webkit-mask:
+        radial-gradient(circle var(--notch) at var(--tear-x) 0, transparent 97%, #000),
+        radial-gradient(circle var(--notch) at var(--tear-x) 100%, transparent 97%, #000);
+    -webkit-mask-composite: source-in;
+    mask:
+        radial-gradient(circle var(--notch) at var(--tear-x) 0, transparent 97%, #000),
+        radial-gradient(circle var(--notch) at var(--tear-x) 100%, transparent 97%, #000);
+    mask-composite: intersect;
+}
+
+.booking-summary p {
+    margin: 0.25rem 0;
+}
+
+/* ---------- 16. États vides, chargement ---------- */
+/* Un siège vide : le même motif que l'illustration de l'accueil */
+.empty-state {
+    padding: var(--space-6) var(--space-4);
+    color: var(--color-muted);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-style: italic;
+    text-align: center;
+}
+
+.empty-state::before {
+    content: "";
+    display: block;
+    width: 2.75rem;
+    height: 2.1rem;
+    margin: 0 auto var(--space-3);
+    border: 1px solid var(--color-border);
+    border-top-color: rgb(229 169 61 / 55%);
+    border-bottom: 0;
+    border-radius: 0.7rem 0.7rem 0 0;
+}
+
+/* Chargement : un trait de lumière balaie le haut de l'élément */
+[aria-busy="true"] {
+    position: relative;
+    opacity: 0.75;
+}
+
+[aria-busy="true"]::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    transform-origin: left;
+}
+
+/* ---------- 17. Pied de page : le générique de fin ---------- */
+.site-footer {
+    position: relative;
+    margin-top: var(--space-6);
+    padding: var(--space-5) 1rem var(--space-4);
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.site-footer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 0.5rem;
+    background: var(--perforation);
+}
+
+.site-footer p {
+    margin: 0;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
+/* ---------- 18. Focus clavier (WCAG 2.4.7, 2.4.11, 2.4.13) ---------- */
+/* Contour or de 3 px, décalé de 3 px : visible sur tous les fonds du site */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+.table-container:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 3px;
+}
+
+/* ---------- 19. Mouvement ---------- */
+@media (prefers-reduced-motion: no-preference) {
+    /* Transition entre pages (JSP = pages multiples) : fondu, en-tête fixe */
+    @view-transition {
+        navigation: auto;
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: var(--t-base);
+        animation-timing-function: var(--ease);
+    }
+
+    /* Voyant du projecteur : respiration lente */
+    .site-brand::before {
+        animation: lamp 5s ease-in-out infinite;
+    }
+
+    /* Le faisceau vacille comme un vieux projecteur */
+    .theater-beam {
+        animation: projector-flicker 7s ease-in-out infinite;
+    }
+
+    /* Le titre est « projeté » : balayage de gauche à droite */
+    .hero-copy h1 {
+        animation: projection var(--t-slow) var(--ease) both;
+    }
+
+    .hero-copy > :not(h1) {
+        animation: fade-up var(--t-slow) var(--ease) 200ms both;
+    }
+
+    .seat-row {
+        animation: fade-up var(--t-slow) var(--ease) both;
+    }
+
+    .seat-row:nth-child(2) { animation-delay: 90ms; }
+    .seat-row:nth-child(3) { animation-delay: 180ms; }
+    .seat-row:nth-child(4) { animation-delay: 270ms; }
+    .seat-row:nth-child(n + 5) { animation-delay: 360ms; }
+
+    [aria-busy="true"]::after {
+        animation: sweep 1.4s var(--ease) infinite;
+    }
+}
+
+@keyframes lamp {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+@keyframes projector-flicker {
+    0%, 100% { opacity: 1; }
+    46% { opacity: 0.88; }
+    48% { opacity: 1; }
+    52% { opacity: 0.8; }
+    54% { opacity: 1; }
+}
+
+@keyframes projection {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
+/* ---------- 20. Responsive ---------- */
+@media (max-width: 48rem) {
+    .cinema-hero {
+        grid-template-columns: minmax(0, 1fr) minmax(9rem, 0.55fr);
+        padding-inline: var(--space-3);
+    }
+
+    .hero-visual {
+        min-height: 14rem;
+    }
+
+    .section-heading {
+        grid-template-columns: 1fr;
+    }
+
+    .site-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .site-nav {
+        width: 100%;
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .welcome-card {
+        margin-left: 0;
+    }
+
+    th,
+    td {
+        padding: 0.65rem 0.5rem;
+    }
+}
+
+@media (max-width: 30rem) {
+    .cinema-hero {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .hero-copy h1 {
+        max-width: 7ch;
+    }
+
+    .hero-visual {
+        min-height: 10rem;
+    }
+
+    main,
+    .page-content {
+        width: min(100% - 1.25rem, 74rem);
+    }
+
+    .site-nav ul {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .site-nav a {
+        width: 100%;
+    }
+
+    .dashboard-card {
+        grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    }
+
+    /* Affiches : deux colonnes décalées, comme un mur d'affiches */
+    .films-container {
+        --stagger: 1.5rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-5) var(--space-2);
+        padding-bottom: var(--stagger);
+    }
+
+    .films-container > .film-card:nth-child(even) {
+        translate: 0 var(--stagger);
+    }
+
+    .film-card h2,
+    .film-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .form-actions,
+    .form-actions > .btn,
+    .form-actions > button,
+    .form-actions > input[type="submit"],
+    .form-actions > input[type="reset"] {
+        width: 100%;
+    }
+
+    .table-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
+/* ---------- 21. Préférences d'accessibilité ---------- */
+@media (prefers-contrast: more) {
+    :root {
+        --color-border: #9a958b;
+        --color-line: rgb(242 238 230 / 40%);
+        --color-line-strong: #b4aea3;
+        --color-muted: #e0dbd0;
+    }
+
+    .btn-secondary,
+    .btn-danger {
+        border-width: 2px;
+    }
+
+    .cinema-hero::after {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .site-header {
+        background: var(--color-background);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+
+/* Mode Windows « Contraste élevé » : les couleurs du système reprennent la main */
+@media (forced-colors: active) {
+    .btn,
+    button,
+    input[type="submit"],
+    input[type="reset"] {
+        border: 1px solid ButtonText;
+    }
+
+    .site-brand::before,
+    .status::before {
+        background: CanvasText;
+    }
+
+    .film-card img {
+        outline: 1px solid CanvasText;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .film-card:hover,
+    .film-card:hover img {
+        transform: none !important;
+    }
+}

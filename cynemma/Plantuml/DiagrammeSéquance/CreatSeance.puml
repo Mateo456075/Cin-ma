@@ -1,0 +1,52 @@
+@startuml
+title SD7 - Créer une séance
+autonumber
+
+actor Administrateur as Admin
+boundary "GestionSeances.jsp" as JSP
+control "SeanceServlet" as Servlet
+control "SeanceService" as Service
+entity "FilmDAO" as FilmDAO
+entity "SalleDAO" as SalleDAO
+entity "SeanceDAO" as SeanceDAO
+database "Base de données" as BDD
+
+Admin -> JSP : Ouvrir le formulaire de séance
+JSP -> Servlet : GET /nouvelle-seance
+Servlet -> FilmDAO : rechercherTous()
+FilmDAO -> BDD : SELECT films
+BDD --> FilmDAO : Films disponibles
+Servlet -> SalleDAO : rechercherToutes()
+SalleDAO -> BDD : SELECT salles
+BDD --> SalleDAO : Salles existantes
+Servlet --> JSP : Fournir les listes (Films, Salles)
+JSP --> Admin : Afficher le formulaire
+
+Admin -> JSP : Saisir film, salle, date, heure de début et type (VF/VOSTFR)
+JSP -> Servlet : POST /creer-seance
+Servlet -> Service : validerEtCreerSeance(donnees)
+
+note right of Service
+Le service calcule l'heure de fin
+en fonction de la durée du film.
+end note
+
+Service -> SeanceDAO : verifierConflitHoraire(salleId, dateHeureDebut, dateHeureFin)
+SeanceDAO -> BDD : Rechercher si une séance chevauche ces horaires
+BDD --> SeanceDAO : Aucun conflit (ou Conflit trouvé)
+SeanceDAO --> Service : Résultat de la vérification
+
+alt Aucun conflit
+    Service -> SeanceDAO : enregistrer(nouvelleSeance)
+    SeanceDAO -> BDD : INSERT INTO seance
+    BDD --> SeanceDAO : Succès
+    SeanceDAO --> Service : Séance créée
+    Service --> Servlet : Succès
+    Servlet --> JSP : Rediriger avec message positif
+    JSP --> Admin : Afficher "Séance ajoutée avec succès"
+else Conflit détecté
+    Service --> Servlet : Exception (Chevauchement d'horaire)
+    Servlet --> JSP : Transmettre l'erreur de planification
+    JSP --> Admin : Afficher "Erreur : La salle est déjà occupée sur ce créneau"
+end
+@enduml

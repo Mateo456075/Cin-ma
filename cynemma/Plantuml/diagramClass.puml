@@ -1,0 +1,203 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+    ' --- ÉNUMÉRATIONS ---
+    class TypeSalle {
+        <<enumeration>>
+        QUATRE_DX
+        CANAPE
+        LIT
+        CONFOR_PLUS
+        STANDARD
+    }
+    class TypeAvantage {
+        <<enumeration>>
+        CUMUL_POINTS
+        PLACES_PREPAYEES
+        REDUCTION_POURCENTAGE
+        ILLIMITE
+    }
+    class DispositionSieges {
+        <<enumeration>>
+        IMAX
+        SCREEN_X
+        RECTANGLE
+        ARC_DE_CERCLE
+    }
+
+    class TypeSeance {
+        <<enumeration>>
+        TROIS_D
+        VIP
+        STANDARD
+    }
+
+    ' --- UTILISATERS ---
+    abstract class Utilisateur {
+        +int id
+        +String nom
+        +String email
+        +String motDePasse
+        +boolean verifierMotDePasse(String mdpSaisi)
+        +void seConnecter()
+        +void seDeconnecter()
+    }
+
+    class Client {
+        +List<Reservation> reservations
+        +Reservation creerReservation(Seance seance, List<Siege> sieges)
+        +List<Reservation> consulterHistorique()
+    }
+
+    class Abonne {
+        +CarteFidelite carte
+        +double appliquerReduction(double montantInitial)
+    }
+
+    class Employe {
+        +Film enregistrerFilm(String titre, int duree)
+        +Seance planifierSeance(Film film, Salle salle, LocalDateTime debut)
+    }
+
+    class Administrateur {
+        +Salle creerSalle(String nom, ConfigurationSalle config)
+        +Utilisateur creerComptePersonnel(String nom, String email, String type)
+    }
+
+    class CarteFidelite {
+        +String numeroCarte
+        +int points
+        +int placesRestantes
+        +LocalDateTime dateExpiration // <-- La nouveauté pour gérer les mois !
+        +void cumulerPoints(double montantAchat)
+    }
+
+    ' --- INFRA ---
+    class Salle {
+        +int id
+        +String nom
+        +TypeSalle typeSalle
+        +ConfigurationSalle configuration
+        +List<Rangee> rangees
+        +int calculerCapaciteReelle()
+        +boolean estDisponible(LocalDateTime debut, LocalDateTime fin)
+        +void appliquerConfiguration(ConfigurationSalle nouvelleConfig)
+    }
+    class OffreFidelite {
+        +int id
+        +String nomOffre
+        +double valeurAvantage
+        +double prixAchat
+        +boolean active
+    }
+    class ConfigurationSalle {
+        +int id
+        +double espacementRangees
+        +double largeurAllee
+        +int nombreBalcons
+        +DispositionSieges disposition
+    }
+
+    class Rangee {
+        +int id
+        +String nomRangee
+        +int nombreSieges
+        +double elevationY
+        +List<Siege> sieges
+    }
+
+    class Siege {
+        +int id
+        +int numero
+        +double coordonneeX
+        +double coordonneeZ
+        +double angleRotation
+        +boolean verifierDisponibilite(Seance seance)
+    }
+
+    ' --- PROGRAMMATION ---
+    class Film {
+        +int id
+        +String titre
+        +int dureeMinutes
+        +List<Seance> seances
+        +String getDureeFormatee()
+    }
+
+    class Seance {
+        +int id
+        +Film film
+        +Salle salle
+        +TypeSeance typeSeance
+        +LocalDateTime dateHeureDebut
+        +LocalDateTime dateHeureFin
+        +List<Billet> billetsVendus
+        +boolean verifierConflitHoraire(LocalDateTime debut, LocalDateTime fin)
+        +int getNombrePlacesRestantes()
+        +boolean estComplete()
+    }
+    class Tarif {
+    +int id
+    +String typeBillet
+    +double prix
+    }
+    ' --- BILLETTERIE ---
+    class Reservation {
+        +int id
+        +Client client
+        +List<Billet> billets
+        +List<LigneSnack> lignesSnacks
+        +LocalDateTime dateReservation
+        +double montantTotal
+        +void calculerMontantTotal()
+        +boolean validerPaiement()
+        +void annulerReservation()
+    }
+
+    class Billet {
+        +int id
+        +Seance seance
+        +Siege siege
+        +double tarifApplique
+        +String genererCodeBarres()
+        +void envoyerParEmail(String emailDestinataire)
+    }
+    class Snack {
+    +int id
+    +String nom
+    +double prix
+    }
+
+    class LigneSnack {
+        +int quantite
+        +double prixUnitaire
+    }
+
+    ' --- RELATIONS HÉRITAGE ---
+    Utilisateur <|-- Client
+    Utilisateur <|-- Employe
+    Utilisateur <|-- Administrateur
+    Client <|-- Abonne
+
+    ' --- RELATIONS ---
+    Abonne "1" --> "1" CarteFidelite : possède
+    Salle "1" --> "1" ConfigurationSalle : définie par
+    Salle "1" *-- "1..*" Rangee : contient
+    Rangee "1" *-- "1..*" Siege : compose
+    Salle --> TypeSalle : type
+    ConfigurationSalle --> DispositionSieges : disposition
+    Film "1" --> "0..*" Seance : concerne
+    Salle "1" --> "0..*" Seance : accueille
+    Seance --> TypeSeance : catégorie
+    Client "1" --> "0..*" Reservation : effectue
+    Reservation "1" *-- "1..*" Billet : contient
+    Billet "0..*" --> "1" Seance : donne accès à
+    Billet "0..*" --> "1" Siege : attribue
+    Billet "0..*" --> "1" Tarif : tarif appliqué
+    Reservation "1" *-- "0..*" LigneSnack : contient
+    LigneSnack "0..*" --> "1" Snack : désigne
+    CarteFidelite "*" --> "1" OffreFidelite : correspond à l'offre
+    OffreFidelite --> TypeAvantage : définit le type
+
+@enduml

@@ -1,0 +1,131 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Visiteur" as Visiteur
+actor "Client" as Client
+actor "Administrateur" as Admin
+actor "Employé" as Employe
+
+rectangle "Application de gestion de cinéma" {
+
+    package "Consultation publique" {
+        usecase "Consulter les films" as ConsulterFilms
+        usecase "Consulter les séances" as ConsulterSeances
+        usecase "Consulter les informations\ndes films et séances" as ConsulterInfos
+    }
+
+    package "Compte et authentification" {
+        usecase "Se connecter" as Connexion
+        usecase "Se déconnecter" as Deconnexion
+        usecase "Créer un compte client" as CreerCompte
+        usecase "Créer un compte administrateur\nou employé" as CreerComptePersonnel
+        usecase "Supprimer un compte" as SupprimerCompte
+    }
+
+    package "Réservation et ventes additionnelles" {
+        usecase "Réserver des places" as Reserver
+        usecase "Choisir une séance" as ChoisirSeance
+        usecase "Choisir le nombre de places" as ChoisirNombre
+        usecase "Consulter les places disponibles" as VoirDisponibilite
+        usecase "Choisir les sièges précis" as ChoisirSieges
+        usecase "Ajouter des snacks à la réservation" as AjouterSnacks
+        usecase "Valider la réservation" as ValiderReservation
+        usecase "Recevoir la confirmation" as Confirmation
+        usecase "Consulter ses réservations" as MesReservations
+    }
+
+    package "Gestion des salles" {
+        usecase "Créer une salle" as CreerSalle
+        usecase "Configurer la salle" as ConfigurerSalle
+        usecase "Choisir le type de salle" as TypeSalle
+        usecase "Définir la disposition des sièges" as Disposition
+        usecase "Générer les sièges" as GenererSieges
+        usecase "Enregistrer les sièges\net leurs coordonnées 3D" as EnregistrerSieges
+        usecase "Déclarer une salle indisponible" as DeclarerSalleIndisponible
+    }
+
+    package "Gestion des films, séances et tarifs" {
+        usecase "Créer un film" as CreerFilm
+        usecase "Créer une séance" as CreerSeance
+        usecase "Modifier un film" as ModifierFilm
+        usecase "Modifier une séance" as ModifierSeance
+        usecase "Supprimer un film" as SupprimerFilm
+        usecase "Supprimer une séance" as SupprimerSeance
+        usecase "Choisir le film et la salle" as ChoisirFilmSalle
+        usecase "Définir la date et l'horaire" as DefinirHoraire
+        usecase "Vérifier les conflits d'horaires" as VerifierConflits
+        usecase "Gérer les tarifs\n(Création au lancement)" as GererTarifs
+        usecase "Gérer le catalogue des snacks" as GererSnacks
+    }
+}
+
+' Accès public commun
+Visiteur --> ConsulterFilms
+Visiteur --> ConsulterSeances
+Visiteur --> ConsulterInfos
+Visiteur --> Connexion
+
+' Fonctionnalités du client connecté
+Client --|> Visiteur
+Client --> Deconnexion
+Client --> Reserver
+Client --> MesReservations
+Client --> AjouterSnacks
+
+Reserver ..> ChoisirSeance : <<include>>
+Reserver ..> ChoisirNombre : <<include>>
+Reserver ..> VoirDisponibilite : <<include>>
+Reserver ..> ChoisirSieges : <<include>>
+Reserver ..> ValiderReservation : <<include>>
+AjouterSnacks ..> Reserver : <<extend>>
+ValiderReservation ..> Confirmation : <<include>>
+Admin --> CreerCompte
+Admin --> CreerComptePersonnel
+Admin --> SupprimerCompte
+Admin --> CreerSalle
+Admin --> ConfigurerSalle
+Admin --> GererTarifs
+Admin --> Deconnexion
+
+CreerSalle ..> ConfigurerSalle : <<include>>
+ConfigurerSalle ..> TypeSalle : <<include>>
+ConfigurerSalle ..> Disposition : <<include>>
+ConfigurerSalle ..> GenererSieges : <<include>>
+GenererSieges ..> EnregistrerSieges : <<include>>
+
+' Gestion des films, séances, salles et snacks par les employés
+Employe --> CreerFilm
+Employe --> CreerSeance
+Employe --> ModifierFilm
+Employe --> ModifierSeance
+Employe --> SupprimerFilm
+Employe --> SupprimerSeance
+Employe --> GererSnacks
+Employe --> DeclarerSalleIndisponible
+Employe --> Deconnexion
+
+CreerSeance ..> ChoisirFilmSalle : <<include>>
+CreerSeance ..> DefinirHoraire : <<include>>
+CreerSeance ..> VerifierConflits : <<include>>
+
+note right of Visiteur
+  Toute personne peut consulter
+  les films, les séances et leurs
+  informations sans être connectée.
+end note
+
+note right of Admin
+  L'administrateur gère les comptes
+  et crée les salles avec leurs sièges
+  pour la représentation 3D.
+end note
+
+note right of Employe
+  L'employé utilise les salles
+  préalablement créées par
+  l'administrateur.
+end note
+
+@enduml

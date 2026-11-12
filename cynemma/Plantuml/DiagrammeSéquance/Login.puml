@@ -1,0 +1,32 @@
+@startuml
+title SD2A - Se connecter
+autonumber
+
+actor "Utilisateur" as U
+boundary "Page de connexion JSP" as JSP
+control "AuthServlet" as Auth
+control "ServiceAuthentification" as Service
+entity "UtilisateurDAO" as DAO
+database "Base de données" as BDD
+
+U -> JSP : Saisir identifiant et mot de passe
+U -> JSP : Soumettre le formulaire
+JSP -> Auth : POST identifiants
+Auth -> Service : authentifier(identifiant, motDePasse)
+Service -> DAO : rechercherParIdentifiant()
+DAO -> BDD : SELECT utilisateur
+BDD --> DAO : Utilisateur ou absence
+DAO --> Service : Résultat de recherche
+
+alt Utilisateur trouvé et mot de passe valide
+    Service --> Auth : Authentification réussie
+    Auth -> Auth : Créer la session utilisateur
+    Auth --> JSP : Redirection vers la page adaptée au rôle
+    JSP --> U : Afficher l'espace autorisé
+else Identifiants incorrects
+    Service --> Auth : Authentification refusée
+    Auth --> JSP : Afficher une erreur
+    JSP --> U : Demander de réessayer
+end
+@enduml
+

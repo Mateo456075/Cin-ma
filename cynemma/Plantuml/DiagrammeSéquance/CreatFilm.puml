@@ -1,0 +1,40 @@
+@startuml
+title SD6 - Créer un film
+autonumber
+
+actor Employe as E
+boundary "GestionFilms.jsp" as JSP
+control "FilmServlet" as Servlet
+entity "FilmDAO" as DAO
+database "Base de données" as BDD
+
+E -> JSP : Ouvrir le formulaire film
+JSP --> E : Afficher les champs
+
+E -> JSP : Saisir les informations du film
+JSP -> Servlet : POST film
+
+Servlet -> Servlet : Valider les informations
+
+alt Informations invalides
+    Servlet --> JSP : Afficher les erreurs
+    JSP --> E : Demander de corriger le formulaire
+
+else Informations valides
+    Servlet -> DAO : enregistrer(film)
+    DAO -> BDD : INSERT film
+    BDD --> DAO : Résultat de l'insertion
+
+    alt Enregistrement réussi
+        DAO --> Servlet : Film créé
+        Servlet --> JSP : Actualiser la liste
+        JSP --> E : Afficher confirmation
+
+    else Échec de l'enregistrement
+        DAO --> Servlet : Erreur d'enregistrement
+        Servlet --> JSP : Afficher l'erreur
+        JSP --> E : Informer de l'échec
+    end
+end
+
+@enduml

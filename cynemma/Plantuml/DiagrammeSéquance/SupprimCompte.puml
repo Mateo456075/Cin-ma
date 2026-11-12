@@ -1,0 +1,25 @@
+
+@startuml
+title SD9 - Consulter ses réservations
+autonumber
+
+actor Client as C
+boundary "MesReservations.jsp" as JSP
+control "ReservationServlet" as Servlet
+entity "BilletDAO" as DAO
+database "Base de données" as BDD
+
+C -> JSP : Ouvrir Mes réservations
+JSP -> Servlet : GET réservations
+Servlet -> DAO : findByClient(clientId)
+DAO -> BDD : SELECT billets et séances du client
+BDD --> DAO : Liste des billets
+DAO --> Servlet : Réservations du client
+Servlet --> JSP : Transmettre les résultats
+
+alt Le client possède des réservations
+    JSP --> C : Afficher billets, séances et sièges
+else Aucune réservation
+    JSP --> C : Afficher "Aucune réservation"
+end
+@enduml

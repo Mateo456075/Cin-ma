@@ -1,0 +1,141 @@
+@startuml
+' Paramètres visuels pour le diagramme de base de données
+hide circle
+skinparam linetype ortho
+skinparam roundcorner 5
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+' --- TABLES UTILISATEURS ---
+entity "utilisateurs" as utilisateurs {
+  - id : INT <<PK>>
+  --
+  - nom : VARCHAR(25)
+  - email : VARCHAR(255) <<UNIQUE>>
+  - mot_de_passe : VARCHAR(255)
+  - login : VARCHAR(255) <<UNIQUE>>
+  - type_utilisateur : VARCHAR(20)
+}
+
+entity "cartes_fidelite" as cartes_fidelite {
+  * id : INT <<PK>>
+  --
+  * utilisateur_id : INT <<FK>> <<UNIQUE>>
+  * numero_carte : VARCHAR(50) <<UNIQUE>>
+  points : INT
+}
+
+' --- TABLES INFRASTRUCTURE ---
+entity "configuration_salles" as configuration_salles {
+  * id : INT <<PK>>
+  --
+  espacement_rangees : FLOAT
+  largeur_allee : FLOAT
+  nombre_balcons : INT
+  disposition : VARCHAR(50)
+}
+
+entity "salles" as salles {
+  * id : INT <<PK>>
+  --
+  configuration_id : INT <<FK>>
+  * nom : VARCHAR(255)
+  * capacite : INT
+  type_salle : VARCHAR(50)
+  etat : VARCHAR(30)
+}
+
+entity "sieges" as sieges {
+  * id : INT <<PK>>
+  --
+  * salle_id : INT <<FK>>
+  * lettre_rangee : VARCHAR(5)
+  * numero : INT
+  * cordo_x : FLOAT
+  cordo_y : FLOAT
+  cordo_z : FLOAT
+  angle_rotation : FLOAT
+}
+
+' --- TABLES PROGRAMMATION ---
+entity "films" as films {
+  * id : INT <<PK>>
+  --
+  * titre : VARCHAR(255)
+  * realisateur : VARCHAR(255)
+  * annee : INT
+  * genre : VARCHAR(100)
+  * affiche : VARCHAR(255)
+  * duree_minutes : INT
+  statut : VARCHAR(30)
+}
+
+entity "seances" as seances {
+  * id : INT <<PK>>
+  --
+  * film_id : INT <<FK>>
+  * salle_id : INT <<FK>>
+  * date_heure_debut : DATETIME
+  * date_heure_fin : DATETIME
+  type_seance : VARCHAR(50)
+}
+
+entity "tarifs" as tarifs {
+  * id : INT <<PK>>
+  --
+  * type_billet : VARCHAR(50)
+  * prix : NUMERIC(10,2)
+}
+
+' --- TABLES BILLETTERIE ---
+entity "reservations" as reservations {
+  * id : INT <<PK>>
+  --
+  * utilisateur_id : INT <<FK>>
+  * date_reservation : DATETIME
+  montant_total : FLOAT
+}
+
+entity "billets" as billets {
+  * id : INT <<PK>>
+  --
+  * reservation_id : INT <<FK>>
+  * seance_id : INT <<FK>>
+  * siege_id : INT <<FK>>
+  tarif_applique : FLOAT
+}
+
+entity "snacks" as snacks {
+  * id : INT <<PK>>
+  --
+  * nom : VARCHAR(255)
+  * prix : NUMERIC(10,2)
+}
+
+entity "lignes_snack" as lignes_snack {
+  * id : INT <<PK>>
+  --
+  * reservation_id : INT <<FK>>
+  * snack_id : INT <<FK>>
+  * quantite : INT
+  * prix_unitaire : NUMERIC(10,2)
+}
+
+' --- RELATIONS (Clés étrangères) ---
+utilisateurs ||--o| cartes_fidelite : "possède 1"
+configuration_salles ||--o{ salles : "définit"
+salles ||--o{ sieges : "contient"
+films ||--o{ seances : "est diffusé"
+salles ||--o{ seances : "accueille"
+utilisateurs ||--o{ reservations : "effectue"
+reservations ||--|{ billets : "comprend"
+seances ||--o{ billets : "concerne"
+sieges ||--o{ billets : "attribue"
+tarifs ||--o{ billets : "tarifie"
+reservations ||--o{ lignes_snack : "contient"
+snacks ||--o{ lignes_snack : "vendu dans"
+
+@enduml

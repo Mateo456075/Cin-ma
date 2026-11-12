@@ -1,0 +1,31 @@
+@startuml
+title SD9 - Consulter ses réservations
+autonumber
+
+actor Client as C
+boundary "MesReservations.jsp" as JSP
+control "ReservationServlet" as Servlet
+entity "ReservationDAO" as DAO
+database "Base de données" as BDD
+
+C -> JSP : Accéder à l'historique
+JSP -> Servlet : GET /mes-reservations
+Servlet -> DAO : rechercherParClient(clientId)
+
+note right of DAO
+Une réservation contient une liste
+de billets, eux-mêmes liés à
+une séance et à un siège.
+end note
+
+DAO -> BDD : SELECT reservations, billets, seances WHERE clientId = ?
+BDD --> DAO : Liste des réservations complètes
+DAO --> Servlet : Réservations du client
+Servlet --> JSP : Transmettre les données structurées
+
+alt Le client possède au moins une réservation
+    JSP --> C : Afficher chaque réservation (Date, Montant) et ses billets
+else Aucune réservation trouvée
+    JSP --> C : Afficher "Vous n'avez aucune réservation en cours"
+end
+@enduml

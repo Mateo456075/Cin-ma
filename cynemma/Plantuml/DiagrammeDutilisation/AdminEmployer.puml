@@ -1,0 +1,48 @@
+@startuml
+title UCD 3 - Administration et Programmation
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Administrateur" as Admin
+actor "Employé" as E
+
+rectangle "Gestion de l'Infrastructure (Admin)" {
+    usecase "Gérer les salles" as GererSalles
+    usecase "Configurer la topologie de salle" as ConfigurerSalle
+    usecase "Générer les coordonnées 3D des sièges" as GenererSieges
+    usecase "Gérer les tarifs\n(Création au lancement)" as GererTarifs
+}
+
+rectangle "Gestion de la Programmation (Employé)" {
+    usecase "Gérer les films (Créer/Modifier/Supprimer)" as GererFilms
+    usecase "Créer une séance" as CreerSeance
+    usecase "Modifier une séance" as ModifierSeance
+    usecase "Supprimer une séance" as SupprimerSeance
+    usecase "Vérifier les conflits d'horaires" as VerifierConflits
+    usecase "Gérer le catalogue des snacks" as GererSnacks
+    usecase "Déclarer une salle indisponible" as DeclarerSalleIndisponible
+}
+
+Admin --> GererSalles
+Admin --> GererTarifs
+GererSalles ..> ConfigurerSalle : <<include>>
+GererSalles ..> GenererSieges : <<include>>
+
+E --> GererFilms
+E --> CreerSeance
+E --> ModifierSeance
+E --> SupprimerSeance
+E --> GererSnacks
+E --> DeclarerSalleIndisponible
+
+' La vérification des conflits est obligatoire pour la création ET la modification
+CreerSeance ..> VerifierConflits : <<include>>
+ModifierSeance ..> VerifierConflits : <<include>>
+
+note right of VerifierConflits
+  Empêche de programmer 
+  deux films dans la même 
+  salle à la même heure.
+end note
+@enduml

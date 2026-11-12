@@ -1,0 +1,44 @@
+@startuml
+title UCD 1 - Consultation et Gestion des comptes (avec Fidélité)
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Visiteur" as V
+actor "Client" as C
+actor "Abonné" as A
+actor "Administrateur" as Admin
+
+' Héritage
+C -up-|> V
+A -up-|> C
+
+rectangle "Consultation & Accès" {
+    usecase "Consulter les films et séances" as Consulter
+    usecase "Créer un compte client" as Inscription
+    usecase "Se connecter / Se déconnecter" as Auth
+}
+
+rectangle "Espace Abonné" {
+    usecase "Consulter sa carte et ses points de fidélité" as ConsulterCarte
+}
+
+rectangle "Administration des comptes" {
+    usecase "Créer un compte employé ou admin" as CreerPerso
+    usecase "Modifier le rôle d'un compte" as ModifierRole
+    usecase "Supprimer un compte" as SupprimerCompte
+}
+
+V --> Consulter
+V --> Inscription
+V --> Auth
+
+C --> Auth
+
+A --> ConsulterCarte
+
+Admin --> Auth
+Admin --> CreerPerso
+Admin --> ModifierRole
+Admin --> SupprimerCompte
+@enduml

@@ -1,0 +1,93 @@
+@startuml
+title SD8 - Acheter des billets et simuler le paiement
+autonumber
+
+actor Client as C
+boundary "Réservation.jsp" as JSP
+control "ReservationServlet" as Servlet
+control "PaiementSimule" as Paiement
+entity "SeanceDAO" as SeanceDAO
+entity "SiegeDAO" as SiegeDAO
+entity "ReservationDAO" as ReservationDAO
+entity "BilletDAO" as BilletDAO
+database "Base de données" as BDD
+participant "Service de messagerie" as Mail
+
+C -> JSP : Choisir une séance
+JSP -> Servlet : demanderSieges(seanceId)
+Servlet -> SeanceDAO : rechercherSeance(seanceId)
+SeanceDAO -> BDD : SELECT séance et salle
+BDD --> SeanceDAO : Informations de séance
+SeanceDAO --> Servlet : Séance
+
+Servlet -> SiegeDAO : rechercherDisponibilites(seanceId)
+SiegeDAO -> BDD : Rechercher les sièges non vendus pour cette séance
+BDD --> SiegeDAO : Sièges disponibles
+SiegeDAO --> Servlet : Disponibilités
+Servlet --> JSP : Afficher le plan des sièges
+JSP --> C : Présenter les sièges disponibles
+
+C -> JSP : Choisir nombre et sièges
+JSP -> Servlet : POST sélection
+Servlet -> SiegeDAO : verifierDisponibiliteTemp(sieges, seanceId)
+SiegeDAO -> BDD : Contrôler l'état des sièges
+BDD --> SiegeDAO : Résultat du contrôle
+SiegeDAO --> Servlet : Disponibilité confirmée
+
+alt Sièges disponibles
+    Servlet -> Servlet : Calculer le montant global de la réservation
+    Servlet --> JSP : Afficher récapitulatif (Sièges + Montant)
+    JSP --> C : Demander confirmation et paiement
+
+    C -> JSP : Lancer le paiement simulé
+    JSP -> Servlet : POST paiement
+    Servlet -> Paiement : simulerPaiement(montant)
+
+    alt Paiement accepté
+        Paiement --> Servlet : Paiement réussi
+
+        note right of Servlet: Début de la transaction pour éviter\nles accès concurrentiels (double réservation)
+        Servlet -> BDD : beginTransaction()
+        
+        Servlet -> SiegeDAO : verrouillerEtVerifierSieges(sieges, seanceId)
+        SiegeDAO -> BDD : Verrouiller (SELECT FOR UPDATE)
+        BDD --> SiegeDAO : Confirmation disponibilité finale
+        SiegeDAO --> Servlet : Sièges toujours libres
+
+        alt Sièges toujours libres
+            Servlet -> ReservationDAO : creerReservation(clientId, montant)
+            ReservationDAO -> BDD : INSERT Reservation
+            BDD --> ReservationDAO : reservationId
+            ReservationDAO --> Servlet : reservationId
+
+            Servlet -> BilletDAO : creerBillets(reservationId, sieges, seanceId)
+            BilletDAO -> BDD : INSERT Billets liés à la Réservation et aux Sièges
+            BDD --> BilletDAO : Billets enregistrés
+            BilletDAO --> Servlet : Billets créés
+
+            Servlet -> BDD : commitTransaction()
+
+            Servlet -> Mail : envoyerConfirmation(email, reservationId, billets)
+            Mail --> Servlet : Résultat d'envoi
+
+            Servlet --> JSP : Afficher la confirmation avec n° de réservation
+            JSP --> C : Afficher les billets virtuels
+        else Sièges vendus entre temps (Conflit)
+            Servlet -> BDD : rollbackTransaction()
+            Servlet -> Paiement : rembourser(montant)
+            Servlet --> JSP : Erreur : Sièges devenus indisponibles
+            JSP --> C : Demander de choisir d'autres sièges
+        end
+
+    else Paiement refusé
+        Paiement --> Servlet : Paiement refusé
+        Servlet --> JSP : Afficher l'échec du paiement
+        JSP --> C : Proposer de réessayer ou annuler
+    end
+
+else Siège indisponible dès le premier choix
+    Servlet --> JSP : Actualiser les disponibilités
+    JSP --> C : Demander de choisir d'autres sièges
+end
+
+@enduml

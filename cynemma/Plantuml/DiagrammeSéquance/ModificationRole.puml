@@ -1,0 +1,40 @@
+@startuml
+title SD4 - Modifier le rôle des utilisateurs
+autonumber
+
+actor Administrateur as Admin
+boundary "GestionComptes.jsp" as JSP
+control "CompteServlet" as Servlet
+entity "UtilisateurDAO" as DAO
+database "Base de données" as BDD
+
+Admin -> JSP : Ouvrir la gestion des comptes
+JSP -> Servlet : GET /utilisateurs
+Servlet -> DAO : rechercherTous()
+DAO -> BDD : SELECT tous les utilisateurs
+BDD --> DAO : Liste des utilisateurs (avec rôles : Client, Admin, etc.)
+DAO --> Servlet : Liste des utilisateurs
+Servlet --> JSP : Transmettre la liste
+JSP --> Admin : Afficher la liste des comptes et leurs rôles actuels
+
+Admin -> JSP : Sélectionner un utilisateur et choisir un nouveau rôle
+Admin -> JSP : Confirmer la modification
+JSP -> Servlet : POST /modifierRole (idUtilisateur, nouveauRole)
+
+Servlet -> Servlet : Valider que le rôle fait partie de l'énumération métier
+
+alt Rôle invalide
+    Servlet --> JSP : Afficher l'erreur (rôle non autorisé)
+    JSP --> Admin : Demander une saisie valide
+
+else Rôle valide
+    Servlet -> DAO : mettreAJourRole(idUtilisateur, nouveauRole)
+    DAO -> BDD : UPDATE utilisateur SET role = ? WHERE id = ?
+    BDD --> DAO : Succès de la modification
+    DAO --> Servlet : Confirmation de mise à jour
+
+    Servlet --> JSP : Actualiser la vue
+    JSP --> Admin : Afficher "Rôle modifié avec succès"
+end
+
+@enduml

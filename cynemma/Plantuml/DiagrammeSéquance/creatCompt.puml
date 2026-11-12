@@ -1,0 +1,45 @@
+@startuml
+title SD3 - Créer un compte client (Inscription)
+autonumber
+
+actor Visiteur as V
+boundary "Inscription.jsp" as JSP
+control "CompteServlet" as Servlet
+entity "UtilisateurDAO" as DAO
+database "Base de données" as BDD
+
+V -> JSP : Ouvrir le formulaire d'inscription
+JSP --> V : Afficher les champs (Nom, Email, MDP)
+V -> JSP : Saisir les informations
+JSP -> Servlet : POST nouveau compte
+
+Servlet -> DAO : rechercherParIdentifiant(email)
+DAO -> BDD : SELECT identifiant
+BDD --> DAO : Résultat
+DAO --> Servlet : Identifiant trouvé ou disponible
+
+alt Identifiant (email) déjà existant
+    Servlet --> JSP : Afficher erreur : email déjà utilisé
+    JSP --> V : Demander une autre adresse email
+
+else Identifiant disponible
+
+    Servlet -> Servlet : Vérifier les règles du mot de passe (Clean Code: validateur séparé)
+
+    alt Mot de passe non conforme
+        Servlet --> JSP : Afficher les règles non respectées
+        JSP --> V : Corriger le mot de passe
+
+    else Mot de passe conforme
+        Servlet -> Servlet : Hacher le mot de passe (BCrypt)
+        note right of Servlet: Assignation du rôle par défaut : "Client"
+        Servlet -> DAO : enregistrer(nouvelUtilisateur)
+        DAO -> BDD : INSERT utilisateur (role='CLIENT')
+        BDD --> DAO : Confirmation
+        DAO --> Servlet : Compte créé avec succès
+        Servlet --> JSP : Rediriger vers la page de connexion
+        JSP --> V : Afficher "Compte créé, veuillez vous connecter"
+    end
+end
+
+@enduml

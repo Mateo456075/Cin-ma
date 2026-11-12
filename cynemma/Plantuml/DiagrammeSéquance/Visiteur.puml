@@ -1,0 +1,36 @@
+@startuml
+title SD1 - Consulter les films et leurs séances
+autonumber
+
+actor Visiteur
+boundary "Films.jsp" as JSPFilms
+control "FilmServlet" as FilmServlet
+entity "FilmDAO" as FilmDAO
+boundary "Seances.jsp" as JSPSeances
+control "SeanceServlet" as SeanceServlet
+entity "SeanceDAO" as SeanceDAO
+database "Base de données" as BDD
+
+== Affichage du catalogue ==
+
+Visiteur -> JSPFilms : Accéder à la page des films à l'affiche
+JSPFilms -> FilmServlet : GET /films
+FilmServlet -> FilmDAO : rechercherFilmsAVenir()
+FilmDAO -> BDD : SELECT * FROM film WHERE statut = 'A L'AFFICHE'
+BDD --> FilmDAO : Liste des films
+FilmDAO --> FilmServlet : Liste d'objets Film
+FilmServlet --> JSPFilms : Transmettre au modèle de vue
+JSPFilms --> Visiteur : Afficher la galerie des films
+
+== Consultation des horaires (Séances) ==
+
+Visiteur -> JSPFilms : Cliquer sur les détails d'un film
+JSPFilms -> SeanceServlet : GET /seances?idFilm=X
+SeanceServlet -> SeanceDAO : rechercherSeancesParFilm(idFilm, dateJour)
+SeanceDAO -> BDD : SELECT * FROM seance WHERE film_id = X
+BDD --> SeanceDAO : Liste des séances
+SeanceDAO --> SeanceServlet : Liste d'objets Seance (avec Salle)
+SeanceServlet --> JSPSeances : Transmettre les séances à la vue
+JSPSeances --> Visiteur : Afficher les horaires et salles pour ce film
+
+@enduml

@@ -1,0 +1,33 @@
+@startuml
+title UCD 2 - Réservation et Billetterie (avec Fidélité)
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Client" as C
+actor "Abonné" as A
+
+A -up-|> C
+
+rectangle "Processus de Billetterie" {
+    usecase "Consulter ses réservations" as MesReservations
+    usecase "Réserver des places" as Reserver
+    usecase "Choisir une séance" as ChoisirSeance
+    usecase "Choisir ses sièges sur le plan 3D" as ChoisirSieges
+    usecase "Payer en ligne" as Payer
+    usecase "Recevoir les billets électroniques" as RecevoirBillets
+    usecase "Utiliser sa carte de fidélité\n(Réductions / Cumul de points)" as CarteFidelite
+}
+
+C --> MesReservations
+C --> Reserver
+
+Reserver ..> ChoisirSeance : <<include>>
+Reserver ..> ChoisirSieges : <<include>>
+Reserver ..> Payer : <<include>>
+
+Reserver <.. RecevoirBillets : <<extend>> \n(condition : paiement validé)
+
+' L'utilisation de la carte de fidélité étend le paiement
+Payer <.. CarteFidelite : <<extend>> \n(condition : utilisateur est Abonné)
+@enduml

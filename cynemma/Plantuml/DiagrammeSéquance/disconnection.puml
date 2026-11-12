@@ -1,0 +1,16 @@
+@startuml
+title SD2B - Se déconnecter
+autonumber
+
+actor "Utilisateur connecté" as U
+boundary "Page JSP" as JSP
+control "AuthServlet" as Auth
+collections "Session HTTP" as Session
+
+U -> JSP : Cliquer sur Déconnexion
+JSP -> Auth : GET /logout
+Auth -> Session : Invalider la session
+Session --> Auth : Session invalidée
+Auth --> JSP : Redirection vers la page visiteur
+JSP --> U : Afficher la page visiteur
+@enduml

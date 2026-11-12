@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.0" xmlns="https://jakarta.ee/xml/ns/persistence"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
+
+    <persistence-unit name="cynemma" transaction-type="RESOURCE_LOCAL">
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+        <class>fr.turgot.dao.model.Utilisateur</class>
+        <class>fr.turgot.dao.model.Client</class>
+        <class>fr.turgot.dao.model.Employe</class>
+        <class>fr.turgot.dao.model.Administrateur</class>
+        <class>fr.turgot.dao.model.CarteFidelite</class>
+        <class>fr.turgot.dao.model.ConfigurationSalle</class>
+        <class>fr.turgot.dao.model.Rangee</class>
+        <class>fr.turgot.dao.model.Siege</class>
+        <class>fr.turgot.dao.model.Film</class>
+        <class>fr.turgot.dao.model.Salle</class>
+        <class>fr.turgot.dao.model.Seance</class>
+        <class>fr.turgot.dao.model.Reservation</class>
+        <class>fr.turgot.dao.model.Billet</class>
+        
+        <properties>
+            <property name="jakarta.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver" />
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:mysql://localhost:8889/cynema?serverTimezone=UTC" /> 
+            <!--<property name="jakarta.persistence.jdbc.url" value="jdbc:mysql://localhost:3306/cynema?serverTimezone=UTC" /> -->
+            <property name="jakarta.persistence.jdbc.user" value="root" />
+            <property name="jakarta.persistence.jdbc.password" value="root" />
+
+            <property name="hibernate.dialect" value="org.hibernate.dialect.MySQLDialect" />
+            <property name="hibernate.hbm2ddl.auto" value="update" />
+            <property name="hibernate.show_sql" value="true" />
+        </properties>
+    </persistence-unit>
+</persistence>
