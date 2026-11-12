@@ -4,13 +4,16 @@
 <jsp:include page="/WEB-INF/includes/header.jsp" />
 <main class="page-content" id="main-content">
     <section class="cinema-hero" aria-labelledby="home-title">
-        <div class="hero-copy">
-            <p class="eyebrow">Cynemma · votre cinéma</p>
-            <h1 id="home-title">Les histoires prennent vie dans le noir.</h1>
-            <p class="hero-description">
-                Découvrez les films à l'affiche et choisissez votre prochaine séance.
-            </p>
-            <a class="btn" href="#catalogue">Parcourir les films</a>
+        <div class="hero-visual" aria-hidden="true">
+        <div class="featured-poster-wrapper">
+            <div class="featured-poster">
+                <div class="poster-glass"></div>
+                    <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                        alt="Film à l'affiche" 
+                        style="width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+                </div>
+                <div class="poster-reflection"></div>
+            </div>
         </div>
         <div class="hero-visual" aria-hidden="true">
             <span class="theater-screen"></span>

@@ -1,33 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+
+/* =========================================================
+   CYNEMMA — Feuille de style v4
+   ========================================================= */
+
+/* ---------- 2. Tokens ---------- */
 :root {
     color-scheme: dark;
 
-    /* Noirs : neutres et chauds, pas bleutés (noir de salle) */
-    --color-background: #08080a;
-    --color-surface: #111114;
-    --color-surface-raised: #1a1a1e;
-
-    /* Ivoire de papier, plus doux que le blanc pur */
-    --color-text: #f2eee6;
-    --color-muted: #b4aea3;
+    /* Noirs chauds (jamais bleutés) et ivoire */
+    --color-background: #0b0a09;
+    --color-surface: #151311;
+    --color-surface-raised: #1f1c19;
+    --color-text: #f4eee3;
+    --color-muted: #b8b0a3;
 
     /* Filets */
-    --color-line: rgb(242 238 230 / 14%);
-    --color-line-strong: #7a756c;
-    --color-border: #6f6a61;
+    --color-line: rgb(244 238 227 / 13%);
+    --color-line-strong: #857d71;
+    --color-border: #7a7267;
 
-    /* La lumière */
-    --color-accent: #e5a93d;
-    --color-accent-hover: #f3bb59;
-    --color-accent-contrast: #17130b;
+    /* Ambre de projecteur : action, focus, état actif */
+    --color-accent: #f0a23a;
+    --color-accent-hover: #f7b658;
+    --color-accent-contrast: #1a1007;
+
+    /* Rouge velours : grandes plages (réservation, sièges) */
+    --color-velvet: #4d1219;
+    --color-velvet-raised: #5e1a22;
 
     --color-danger: #ff746c;
     --color-success: #7bdca5;
     --color-info: #9dc9ff;
 
-    /* Typographie : serif d'affiche + sans système */
-    --font-display: "Didot", "Bodoni MT", "Bodoni 72", "Iowan Old Style",
-        "Palatino Linotype", "Book Antiqua", Georgia, serif;
-    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    /* Typographie */
+    --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
     /* Espacements */
     --space-1: 0.5rem;
@@ -36,676 +44,132 @@
     --space-4: 1.5rem;
     --space-5: 2rem;
     --space-6: 3rem;
+    --space-7: 5rem;
 
     /* Rayons : droit pour regarder, arrondi pour toucher */
-    --radius-print: 2px;
+    --radius-print: 3px;
     --radius-sm: 0.625rem;
     --radius-md: 0.875rem;
     --radius-lg: 1.125rem;
 
-    /* Mouvement : une courbe, trois durées */
+    /* Mouvement */
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
     --t-fast: 140ms;
     --t-base: 280ms;
-    --t-slow: 800ms;
+    --t-slow: 700ms;
     --transition-fast: var(--t-fast) var(--ease);
 
-    /* Motifs récurrents */
-    --perforation: repeating-linear-gradient(
-        90deg,
-        rgb(242 238 230 / 16%) 0 0.75rem,
-        transparent 0.75rem 1.5rem
-    );
+    --sidebar-width: 16rem;
 }
 
-/* ---------- 2. Base ---------- */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
+/* ---------- 3. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
 
-html {
-    min-width: 20rem;
-    min-height: 100%;
-    scroll-padding-top: 5rem;
-    -webkit-text-size-adjust: 100%;
-}
+html { min-width: 20rem; min-height: 100%; scroll-padding-top: 5rem; -webkit-text-size-adjust: 100%; }
 
 body {
-    display: flex;
-    min-height: 100vh;
-    margin: 0;
-    background: var(--color-background);
-    color: var(--color-text);
-    font-family: var(--font-body);
-    font-size: 1rem;
-    line-height: 1.6;
+    display: flex; flex-direction: column; min-height: 100vh; margin: 0;
+    background: var(--color-background); color: var(--color-text);
+    font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.65;
     -webkit-font-smoothing: antialiased;
 }
 
-body,
-button,
-input,
-select,
-textarea {
-    font-family: var(--font-body);
-}
+::selection { background: var(--color-accent); color: var(--color-accent-contrast); }
+.site-shell { display: flex; flex: 1; flex-direction: column; min-height: 100vh; }
 
-::selection {
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
-}
+/* ---------- 4. Typographie ---------- */
+h1, h2, h3 { color: var(--color-text); font-family: var(--font-display); font-optical-sizing: auto; font-variation-settings: "SOFT" 50; font-weight: 500; line-height: 1.08; text-wrap: balance; }
+h1 { margin: 0 0 var(--space-3); font-size: clamp(2.5rem, 6vw, 4.25rem); letter-spacing: -0.025em; }
+h2 { margin: 0 0 var(--space-3); font-size: clamp(1.75rem, 3.2vw, 2.5rem); letter-spacing: -0.02em; }
+h3 { font-size: 1.3rem; }
+h1 em, h2 em, h3 em { font-style: italic; font-weight: 400; }
+p { margin-block: 0 var(--space-3); text-wrap: pretty; }
+a { color: var(--color-accent); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+a:hover { color: var(--color-accent-hover); }
 
-.site-shell {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 100vh;
-}
+.film-card p, td, .booking-summary { font-variant-numeric: lining-nums tabular-nums; }
+.eyebrow { margin: 0 0 var(--space-3); color: var(--color-muted); font-family: var(--font-display); font-size: 1.15rem; font-style: italic; }
 
-.skip-link {
-    position: fixed;
-    z-index: 200;
-    top: var(--space-2);
-    left: var(--space-2);
-    transform: translateY(-160%);
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-sm);
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
-    font-weight: 700;
-}
-
-.skip-link:focus {
-    transform: translateY(0);
-}
-
-/* ---------- 3. Typographie ---------- */
-h1,
-h2,
-h3 {
-    color: var(--color-text);
-    font-family: var(--font-display);
-    font-weight: 400;
-    line-height: 1.1;
-    text-wrap: balance;
-}
-
-h1 {
-    margin: 0 0 var(--space-3);
-    font-size: clamp(2.25rem, 6vw, 4rem);
-    letter-spacing: -0.03em;
-}
-
-h2 {
-    margin: 0 0 var(--space-3);
-    font-size: clamp(1.5rem, 3vw, 2.25rem);
-    letter-spacing: -0.02em;
-}
-
-h3 {
-    font-size: 1.25rem;
-}
-
-p {
-    margin-block: 0 var(--space-3);
-    text-wrap: pretty;
-}
-
-a {
-    color: var(--color-accent);
-    text-underline-offset: 0.2em;
-    text-decoration-thickness: 1px;
-}
-
-a:hover {
-    color: var(--color-accent-hover);
-}
-
-/* Étiquette de générique : petite, espacée, précédée d'un filet doré */
-.eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 var(--space-3);
-    color: var(--color-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-}
-
-.eyebrow::before {
-    content: "";
-    width: 2rem;
-    height: 1px;
-    background: var(--color-accent);
-}
-
-/* ---------- 4. En-tête : le seul verre du site ---------- */
+/* ---------- 5. En-tête ---------- */
 .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-1) var(--space-4);
-    padding: 0.25rem clamp(1rem, 4vw, 3.5rem);
-    border-bottom: 1px solid var(--color-line);
-    background: var(--color-background);
-    view-transition-name: site-header;
+    position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: var(--space-1) var(--space-4); padding: 0.35rem clamp(1rem, 4vw, 3.5rem); border-bottom: 1px solid var(--color-line); background: var(--color-background);
 }
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    .site-header {
-        background: rgb(8 8 10 / 74%);
-        -webkit-backdrop-filter: saturate(150%) blur(16px);
-        backdrop-filter: saturate(150%) blur(16px);
-    }
+    .site-header { background: rgb(11 10 9 / 78%); -webkit-backdrop-filter: saturate(140%) blur(14px); backdrop-filter: saturate(140%) blur(14px); }
 }
 
-.site-brand,
-.site-nav a {
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
-    text-decoration: none;
-}
+.site-brand, .site-nav a { display: inline-flex; min-height: 44px; align-items: center; text-decoration: none; }
+.site-brand { color: var(--color-text); font-family: var(--font-display); font-size: 1.65rem; font-variation-settings: "SOFT" 100; font-weight: 600; letter-spacing: -0.02em; }
+.site-brand:hover { color: var(--color-text); }
+.site-nav ul { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.5rem; margin: 0; padding: 0; list-style: none; }
+.site-nav a:not(.btn) { padding: 0.5rem 0.75rem; color: var(--color-muted); font-size: 1rem; font-weight: 500; transition: color var(--transition-fast); }
+.site-nav a:not(.btn):hover, .site-nav a[aria-current="page"] { color: var(--color-text); text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 2px; text-underline-offset: 0.45em; }
 
-/* Marque : serif en capitales espacées + voyant de projecteur allumé */
-.site-brand {
-    gap: 0.75rem;
-    color: var(--color-text);
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
+.btn {
+    display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.6rem 1.3rem; border: 1px solid transparent; border-radius: var(--radius-md); background: var(--color-accent); color: var(--color-accent-contrast);
+    font: inherit; font-size: 1rem; font-weight: 700; line-height: 1.25; text-align: center; text-decoration: none; cursor: pointer; transition: transform var(--transition-fast);
 }
+.btn:hover { background: var(--color-accent-hover); }
+.btn:active { transform: scale(0.97); }
 
-.site-brand:hover {
-    color: var(--color-text);
-}
+main, .page-content { width: min(100% - 2rem, 74rem); flex: 1; margin-inline: auto; }
+.page-content { padding-block: clamp(1.5rem, 4vw, 3.5rem); }
 
-.site-brand::before {
-    content: "";
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--color-accent);
-    box-shadow: 0 0 0.75rem 0.15rem rgb(229 169 61 / 55%);
-}
-
-.site-nav ul {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 0.25rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-/* Liens : texte seul, trait doré qui se déploie depuis le centre */
-.site-nav a:not(.btn) {
-    position: relative;
-    padding: 0.5rem 0.85rem;
-    color: var(--color-muted);
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    transition: color var(--transition-fast);
-}
-
-.site-nav a:not(.btn)::after {
-    content: "";
-    position: absolute;
-    right: 0.85rem;
-    bottom: 0.5rem;
-    left: 0.85rem;
-    height: 1px;
-    background: var(--color-accent);
-    transform: scaleX(0);
-    transition: transform var(--t-base) var(--ease);
-}
-
-.site-nav a:not(.btn):hover,
-.site-nav a:not(.btn):focus-visible,
-.site-nav a[aria-current="page"] {
-    color: var(--color-text);
-}
-
-.site-nav a:not(.btn):hover::after,
-.site-nav a:not(.btn):focus-visible::after,
-.site-nav a[aria-current="page"]::after {
-    transform: scaleX(1);
-}
-
-main,
-.page-content {
-    width: min(100% - 2rem, 74rem);
-    flex: 1;
-    margin-inline: auto;
-}
-
-.page-content {
-    padding-block: clamp(1.5rem, 4vw, 3.5rem);
-}
-
-/* ---------- 5. Accueil : l'ouverture ---------- */
-/* Sans boîte : deux filets, un format panoramique, des repères de coupe */
+/* ---------- 6. Accueil ---------- */
 .cinema-hero {
-    position: relative;
-    isolation: isolate;
-    display: grid;
-    min-height: clamp(26rem, 56vw, 40rem);
-    grid-template-columns: minmax(0, 1.25fr) minmax(12rem, 0.75fr);
-    align-items: end;
-    gap: clamp(1rem, 4vw, 3rem);
-    overflow: hidden;
-    padding: clamp(2rem, 6vw, 4.5rem) clamp(0.5rem, 3vw, 2rem);
-    border-block: 1px solid var(--color-line);
-    /* Une seule source de lumière : l'écran */
-    background: radial-gradient(ellipse 45% 60% at 78% 38%, rgb(229 169 61 / 13%), transparent 70%);
+    position: relative; isolation: isolate; display: grid; min-height: clamp(30rem, 72vh, 46rem); align-content: end; overflow: hidden;
+    padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 4vw, 3rem); border-radius: var(--radius-print);
+    background: radial-gradient(ellipse 50% 60% at 82% 30%, rgb(240 162 58 / 10%), transparent 70%), var(--color-surface);
 }
 
-/* Repères de coupe d'une affiche imprimée */
-.cinema-hero::before {
-    --mark: rgb(242 238 230 / 38%);
-    content: "";
-    position: absolute;
-    inset: 0.75rem;
-    z-index: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(var(--mark), var(--mark)) 0 0 / 14px 1px,
-        linear-gradient(var(--mark), var(--mark)) 0 0 / 1px 14px,
-        linear-gradient(var(--mark), var(--mark)) 100% 0 / 14px 1px,
-        linear-gradient(var(--mark), var(--mark)) 100% 0 / 1px 14px,
-        linear-gradient(var(--mark), var(--mark)) 0 100% / 14px 1px,
-        linear-gradient(var(--mark), var(--mark)) 0 100% / 1px 14px,
-        linear-gradient(var(--mark), var(--mark)) 100% 100% / 14px 1px,
-        linear-gradient(var(--mark), var(--mark)) 100% 100% / 1px 14px;
-    background-repeat: no-repeat;
-}
+.hero-copy { position: relative; z-index: 2; max-width: 44rem; }
+.hero-copy h1 { max-width: 11ch; margin-bottom: var(--space-4); font-size: clamp(3rem, 9vw, 7rem); letter-spacing: -0.035em; line-height: 0.96; }
+.hero-copy .eyebrow { width: fit-content; color: var(--color-text); }
+.hero-description { max-width: 30rem; margin-bottom: var(--space-4); color: var(--color-text); font-size: clamp(1.05rem, 1.6vw, 1.2rem); }
 
-/* Grain de pellicule */
-.cinema-hero::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
+.hero-visual { position: absolute; inset: 0; z-index: 0; padding: 0; pointer-events: none; }
+.featured-poster-wrapper { position: absolute; inset: 0; width: 100%; transform: none; }
+.featured-poster { position: absolute; inset: 0 0 0 28%; border: 0; background: none; box-shadow: none; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 42%); mask-image: linear-gradient(to right, transparent 0, #000 42%); }
+.featured-poster img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
-.hero-copy {
-    position: relative;
-    z-index: 2;
-    max-width: 44rem;
-}
+.hero-visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to right, rgb(11 10 9 / 92%) 0, rgb(11 10 9 / 84%) 48%, rgb(11 10 9 / 15%) 82%), linear-gradient(to top, rgb(11 10 9 / 90%) 0, transparent 55%); }
 
-/* Le titre est l'image : très grand, serré, il empiète sur l'écran */
-.hero-copy h1 {
-    max-width: 9ch;
-    margin-bottom: var(--space-4);
-    font-size: clamp(3.25rem, 10vw, 8rem);
-    letter-spacing: -0.045em;
-    line-height: 0.9;
-}
+/* ---------- 7. Sections et pages ---------- */
+.catalogue-section { padding-top: var(--space-7); scroll-margin-top: 5rem; }
+.section-heading { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.55fr); align-items: end; gap: var(--space-3) var(--space-6); margin-bottom: var(--space-6); }
+.section-heading h2 { margin: 0; font-size: clamp(2.5rem, 7vw, 5rem); letter-spacing: -0.03em; line-height: 0.98; }
+.section-description { margin: 0; color: var(--color-muted); font-size: 1rem; }
 
-.hero-description {
-    max-width: 28rem;
-    margin-bottom: var(--space-4);
-    padding-left: var(--space-3);
-    border-left: 1px solid var(--color-line-strong);
-    color: var(--color-muted);
-    font-size: clamp(1rem, 1.6vw, 1.125rem);
-}
+/* ---------- 9. Catalogue ---------- */
+.films-container { --stagger: 2.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr)); gap: var(--space-6) var(--space-4); }
+.film-card { position: relative; padding: 0; border: 0; border-radius: 0; background: none; transition: transform var(--t-base) var(--ease); }
+.film-card a { display: block; height: 100%; color: var(--color-text); text-decoration: none; }
+.film-card img { display: block; width: 100%; aspect-ratio: 2 / 3; border-radius: var(--radius-print); background: var(--color-surface-raised); outline: 1px solid rgb(244 238 227 / 12%); outline-offset: -1px; box-shadow: 0 1rem 1.5rem -1.1rem rgb(0 0 0 / 85%); object-fit: cover; transition: filter var(--t-base) var(--ease), transform var(--t-base) var(--ease); }
+.film-card :is(h2, h3) { margin: var(--space-2) 0 0; color: var(--color-text); font-size: 1.4rem; line-height: 1.15; }
+.film-card p { margin: 0.3rem 0 0; color: var(--color-muted); font-size: 0.95rem; }
 
-/* ---------- 6. Illustration CSS : la salle ---------- */
-.hero-visual {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    min-height: 18rem;
-    perspective: 800px;
-    padding-bottom: 1rem;
-}
-
-.theater-screen {
-    position: absolute;
-    top: 6%;
-    z-index: 2;
-    width: 82%;
-    height: 42%;
-    border: 1px solid var(--color-line-strong);
-    border-radius: var(--radius-print);
-    background: linear-gradient(135deg, #060607 0%, #151519 55%, rgb(229 169 61 / 30%) 100%);
-    box-shadow: 0 0 4rem rgb(229 169 61 / 20%), inset 0 0 1.5rem rgb(0 0 0 / 85%);
-}
-
-.theater-beam {
-    position: absolute;
-    top: 48%;
-    z-index: 1;
-    width: 130%;
-    height: 52%;
-    background: linear-gradient(to bottom, rgb(229 169 61 / 17%), transparent 88%);
-    clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
-    pointer-events: none;
-}
-
-.theater-seats {
-    position: relative;
-    z-index: 3;
-    display: flex;
-    width: 100%;
-    flex-direction: column;
-    gap: 0.4rem;
-    transform: rotateX(25deg);
-    transform-origin: bottom center;
-}
-
-.seat-row {
-    display: flex;
-    justify-content: center;
-    gap: 0.4rem;
-}
-
-.seat {
-    width: clamp(1.2rem, 3vw, 2.2rem);
-    height: clamp(1rem, 2.5vw, 1.8rem);
-    border: 1px solid var(--color-border);
-    border-bottom: 0;
-    border-radius: 0.6rem 0.6rem 0 0;
-    background: linear-gradient(to bottom, var(--color-surface-raised), var(--color-background));
-}
-
-/* Les rangées proches de l'écran sont éclairées, les autres s'éteignent */
-.seat-row:first-child .seat {
-    border-top-color: rgb(229 169 61 / 70%);
-    box-shadow: inset 0 2px 6px rgb(229 169 61 / 20%);
-}
-
-.seat-row:nth-child(2) .seat {
-    border-top-color: rgb(229 169 61 / 32%);
-}
-
-/* ---------- 7. Sections : chacune se compose ---------- */
-main {
-    counter-reset: section;
-}
-
-.catalogue-section {
-    position: relative;
-    padding-top: clamp(4rem, 9vw, 7rem);
-    scroll-margin-top: 5rem;
-    counter-increment: section;
-}
-
-/* Perforations de pellicule : le séparateur de section */
-.catalogue-section::before {
-    content: "";
-    position: absolute;
-    top: clamp(1.5rem, 4vw, 3rem);
-    right: 0;
-    left: 0;
-    height: 0.5rem;
-    background: var(--perforation);
-}
-
-/* Composition asymétrique : grand titre à gauche, texte étroit à droite */
-.section-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.5fr);
-    align-items: end;
-    gap: var(--space-3) var(--space-5);
-    margin-bottom: var(--space-6);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-}
-
-.section-heading h2 {
-    margin: 0;
-    font-size: clamp(2.5rem, 7vw, 5rem);
-    letter-spacing: -0.035em;
-    line-height: 0.92;
-}
-
-/* Numéro de séquence, masqué aux lecteurs d'écran */
-.section-heading h2::before {
-    content: counter(section, decimal-leading-zero);
-    content: counter(section, decimal-leading-zero) / "";
-    display: block;
-    margin-bottom: var(--space-2);
-    color: var(--color-muted);
-    font-family: var(--font-body);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-}
-
-.section-description {
-    margin: 0;
-    color: var(--color-muted);
-    font-size: 0.95rem;
-}
-
-/* Pages internes : titre à gauche, actions à droite, un filet dessous */
-.page-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-5);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-}
-
-.page-heading h1 {
-    margin: 0;
-}
-
-/* ---------- 8. Panneaux (plats, filets, coins droits) ---------- */
-.card,
-.form-container {
-    min-width: 0;
-    padding: clamp(1rem, 3vw, 1.75rem);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-print);
-    background: var(--color-surface);
-}
-
-.form-container {
-    width: min(100%, 40rem);
-    margin: 0 auto;
-    padding: var(--space-4) 0 0;
-    border-width: 1px 0 0;
-    border-color: var(--color-text);
-    background: none;
-}
-
-.form-container h1 {
-    font-size: clamp(2.25rem, 6vw, 3.75rem);
-    line-height: 1;
-}
-
-.form-intro,
-.text-muted {
-    color: var(--color-muted);
-}
-
-/* Accueil connecté : décalé, aéré, sans boîte */
-.welcome-card {
-    max-width: 40rem;
-    margin: clamp(2rem, 8vw, 6rem) 0 0 clamp(0rem, 8vw, 6rem);
-    padding: var(--space-4) 0 0;
-    border-width: 1px 0 0;
-    background: none;
-    text-align: left;
-}
-
-.welcome-card h1 {
-    font-size: clamp(2.5rem, 7vw, 4.5rem);
-    line-height: 0.95;
-}
-
-/* ---------- 9. Catalogue : les affiches ---------- */
-.films-container {
-    --stagger: 2.5rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
-    gap: var(--space-6) var(--space-4);
-    margin-top: var(--space-4);
-    counter-reset: film;
-}
-
-.film-card {
-    position: relative;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    counter-increment: film;
-    transition: transform var(--t-base) var(--ease);
-}
-
-.film-card a {
-    display: block;
-    height: 100%;
-    color: var(--color-text);
-    text-decoration: none;
-}
-
-/* L'affiche : bord presque droit, liseré fin comme un tirage papier */
-.film-card img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    border-radius: var(--radius-print);
-    background: var(--color-surface-raised);
-    outline: 1px solid rgb(242 238 230 / 12%);
-    outline-offset: -1px;
-    box-shadow: 0 1.25rem 2rem -1rem rgb(0 0 0 / 80%);
-    object-fit: cover;
-    transition: filter var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease), transform var(--t-base) var(--ease);
-}
-
-.film-card-content {
-    padding: var(--space-2) 0 0;
-}
-
-/* Légende : numéro de séquence + titre en serif + métadonnées discrètes */
-.film-card h2,
-.film-card h3 {
-    margin: var(--space-2) 0 0;
-    color: var(--color-text);
-    font-size: 1.3rem;
-    line-height: 1.15;
-}
-
-.film-card h2::before,
-.film-card h3::before {
-    content: "N° " counter(film, decimal-leading-zero);
-    content: "N° " counter(film, decimal-leading-zero) / "";
-    display: block;
-    margin-bottom: 0.35rem;
-    color: var(--color-muted);
-    font-family: var(--font-body);
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-}
-
-.film-card p {
-    margin: 0.35rem 0 0;
-    color: var(--color-muted);
-    font-size: 0.875rem;
-}
-
-.film-card a:focus-visible {
-    outline: 3px solid var(--color-accent);
-    outline-offset: 6px;
-}
-
-.film-card a:active img {
-    transform: scale(0.98);
-}
-
-/* Grille décalée : une affiche sur deux « descend », comme accrochées au hasard */
 @media (min-width: 40rem) {
-    .films-container {
-        padding-bottom: var(--stagger);
-    }
-
-    .films-container > .film-card:nth-child(even) {
-        translate: 0 var(--stagger);
-    }
+    .films-container { padding-bottom: var(--stagger); }
+    .films-container > .film-card:nth-child(3n + 2) { translate: 0 var(--stagger); }
+    .films-container > .film-card:nth-child(3n) { translate: 0 calc(var(--stagger) * 0.4); }
 }
-
-/* Catalogue d'accueil : la première affiche est mise en scène sur 2×2 */
 @media (min-width: 48rem) {
-    .catalogue-section .films-container > .film-card:first-child {
-        grid-column: span 2;
-        grid-row: span 2;
-        translate: none;
-    }
-
-    .catalogue-section .films-container > .film-card:first-child h2,
-    .catalogue-section .films-container > .film-card:first-child h3 {
-        font-size: clamp(1.75rem, 3vw, 2.5rem);
-    }
+    .catalogue-section .films-container > .film-card:first-child { grid-column: span 2; grid-row: span 2; }
+    .catalogue-section .films-container > .film-card:first-child :is(h2, h3) { font-size: clamp(2rem, 3.4vw, 2.9rem); }
 }
-
-/* « Extinction des lumières » : survoler une affiche assombrit les autres.
-   Seules les images s'assombrissent, jamais le texte (contraste préservé). */
 @media (hover: hover) {
-    .film-card:not(.film-card-static):hover {
-        transform: translateY(-6px);
-    }
-
-    .film-card:not(.film-card-static):hover img {
-        box-shadow: 0 2rem 3.5rem -1.5rem rgb(229 169 61 / 35%);
-    }
-
-    .films-container:has(.film-card:hover) .film-card:not(:hover) img {
-        filter: brightness(0.45) saturate(0.7);
-    }
+    .film-card:hover { transform: translateY(-6px); }
+    .films-container:has(.film-card:hover) .film-card:not(:hover) img { filter: brightness(0.45) saturate(0.7); }
 }
 
-.films-container:has(.film-card a:focus-visible) .film-card:not(:focus-within) img {
-    filter: brightness(0.55);
-}
+/* ---------- 10. Lueur du film ---------- */
+.has-film-glow { position: relative; isolation: isolate; }
+.has-film-glow::before { content: ""; position: absolute; inset: -10% -5% auto; z-index: -1; height: 70%; pointer-events: none; background: radial-gradient(ellipse 60% 100% at 70% 0%, color-mix(in srgb, var(--film-glow, transparent) 30%, transparent), transparent 70%); }
 
-/* Apparition des affiches au défilement (amélioration progressive) */
-@supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-        .film-card {
-            animation: poster-in linear backwards;
-            animation-timeline: view();
-            animation-range: entry 0% entry 45%;
-        }
-    }
-}
-
-@keyframes poster-in {
-    from {
-        opacity: 0;
-        scale: 0.97;
-    }
-}
-
-/* ---------- 10. Tableau de bord : un index, pas une grille de cartes ---------- */
+/* ---------- 11. Tableau de bord ---------- */
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -759,7 +223,6 @@ main {
     font-size: 0.95rem;
 }
 
-/* Flèche décorative, ignorée des lecteurs d'écran */
 .dashboard-card::after {
     content: "→";
     content: "→" / "";
@@ -770,7 +233,6 @@ main {
     transition: transform var(--t-base) var(--ease), color var(--transition-fast);
 }
 
-/* Trait de lumière qui parcourt la ligne */
 .dashboard-card::before {
     content: "";
     position: absolute;
@@ -806,14 +268,13 @@ main {
     transform: translateX(0.4rem);
 }
 
-/* ---------- 11. Tableaux : dense, fonctionnel, au trait ---------- */
+/* ---------- 12. Tableaux ---------- */
 .table-container {
     max-width: 100%;
     overflow-x: auto;
     scrollbar-color: var(--color-border) var(--color-background);
 }
 
-/* Sans panneau : seuls deux filets encadrent les données */
 .table-container.card {
     padding: var(--space-2) 0;
     border-width: 1px 0;
@@ -824,7 +285,6 @@ main {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-variant-numeric: tabular-nums;
     text-align: left;
 }
 
@@ -832,7 +292,7 @@ caption {
     padding: 0 0 var(--space-2);
     color: var(--color-text);
     font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     text-align: left;
 }
 
@@ -846,10 +306,8 @@ td {
 th {
     border-bottom-color: var(--color-line-strong);
     color: var(--color-muted);
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
     white-space: nowrap;
 }
 
@@ -858,12 +316,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-    background: rgb(242 238 230 / 4%);
-}
-
-/* La ligne survolée est « éclairée » par un trait doré */
-tbody tr:hover td:first-child {
-    box-shadow: inset 2px 0 0 var(--color-accent);
+    background: rgb(244 238 227 / 5%);
 }
 
 tbody tr:last-child td {
@@ -876,17 +329,16 @@ tbody tr:last-child td {
     max-height: 5.25rem;
     border-radius: var(--radius-print);
     background: var(--color-surface-raised);
-    outline: 1px solid rgb(242 238 230 / 12%);
+    outline: 1px solid rgb(244 238 227 / 12%);
     outline-offset: -1px;
     object-fit: cover;
 }
 
-/* Statut : un point + du texte (la couleur n'est jamais seule porteuse du sens) */
 .status {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
 }
 
 .status::before {
@@ -901,75 +353,16 @@ tbody tr:last-child td {
 .status-danger::before { background: var(--color-danger); }
 .status-info::before { background: var(--color-info); }
 
-/* ---------- 12. Boutons : ce qu'on touche est arrondi ---------- */
-.table-actions,
-.actions,
-.nav-links,
-.form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.form-actions {
-    margin-top: var(--space-4);
-}
-
-.actions,
-.nav-links {
-    justify-content: center;
-    margin-block: var(--space-3);
-}
-
-.table-actions form {
-    margin: 0;
-}
-
-/* Action principale : or plat. Pas de dégradé, pas de halo. */
-.btn,
-button,
-input[type="submit"],
-input[type="reset"] {
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.25rem;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.25;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
-}
-
-.btn:hover,
-button:hover,
-input[type="submit"]:hover,
-input[type="reset"]:hover {
-    background: var(--color-accent-hover);
-    color: var(--color-accent-contrast);
-}
-
-/* Action secondaire : simple contour d'ivoire */
+/* ---------- 13. Boutons Secondaires ---------- */
 .btn-secondary {
-    border-color: rgb(242 238 230 / 40%);
+    border-color: rgb(244 238 227 / 42%);
     background: transparent;
     color: var(--color-text);
 }
 
 .btn-secondary:hover {
     border-color: var(--color-text);
-    background: rgb(242 238 230 / 8%);
+    background: rgb(244 238 227 / 9%);
     color: var(--color-text);
 }
 
@@ -994,23 +387,13 @@ textarea:disabled,
     cursor: not-allowed;
 }
 
-/* Retour tactile : la matière s'enfonce */
-.btn:active,
-button:active,
-input[type="submit"]:active,
-input[type="reset"]:active {
-    transform: scale(0.97);
-}
-
-/* ---------- 13. Formulaires ---------- */
+/* ---------- 14. Formulaires ---------- */
 label {
     display: block;
-    margin-bottom: 0.4rem;
-    color: var(--color-muted);
-    font-size: 0.75rem;
+    margin-bottom: 0.35rem;
+    color: var(--color-text);
+    font-size: 0.95rem;
     font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
 }
 
 input:not([type="submit"]):not([type="reset"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
@@ -1035,7 +418,6 @@ textarea:hover {
     border-color: var(--color-muted);
 }
 
-/* Champ actif = champ éclairé */
 input:not([type="submit"]):not([type="reset"]):not([type="hidden"]):focus,
 select:focus,
 textarea:focus {
@@ -1079,10 +461,10 @@ textarea:user-invalid {
 .form-hint {
     margin: -0.75rem 0 var(--space-4);
     color: var(--color-muted);
-    font-size: 0.875rem;
+    font-size: 0.95rem;
 }
 
-/* ---------- 14. Messages : une barre latérale, pas une boîte ---------- */
+/* ---------- 15. Messages ---------- */
 .error-message,
 .success-message,
 .info-message {
@@ -1097,7 +479,7 @@ textarea:user-invalid {
 
 .error-message {
     border-color: var(--color-danger);
-    background: #231517;
+    background: #261614;
     color: #ffaaa4;
 }
 
@@ -1113,8 +495,7 @@ textarea:user-invalid {
     color: #b7d7ff;
 }
 
-/* ---------- 15. Récapitulatif = billet de cinéma ---------- */
-/* Talon perforé à gauche, encoches haut et bas sur la ligne de déchirure */
+/* ---------- 16. Récapitulatif = billet ---------- */
 .booking-summary {
     --tear-x: 1.25rem;
     --notch: 0.6rem;
@@ -1122,7 +503,7 @@ textarea:user-invalid {
     padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--tear-x) + var(--space-4));
     border-radius: var(--radius-print);
     background:
-        repeating-linear-gradient(to bottom, rgb(242 238 230 / 35%) 0 6px, transparent 6px 12px)
+        repeating-linear-gradient(to bottom, rgb(244 238 227 / 38%) 0 6px, transparent 6px 12px)
             var(--tear-x) 0 / 1px 100% no-repeat,
         var(--color-surface-raised);
     -webkit-mask:
@@ -1139,13 +520,12 @@ textarea:user-invalid {
     margin: 0.25rem 0;
 }
 
-/* ---------- 16. États vides, chargement ---------- */
-/* Un siège vide : le même motif que l'illustration de l'accueil */
+/* ---------- 17. États vides, chargement ---------- */
 .empty-state {
     padding: var(--space-6) var(--space-4);
     color: var(--color-muted);
     font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-style: italic;
     text-align: center;
 }
@@ -1157,12 +537,11 @@ textarea:user-invalid {
     height: 2.1rem;
     margin: 0 auto var(--space-3);
     border: 1px solid var(--color-border);
-    border-top-color: rgb(229 169 61 / 55%);
+    border-top-color: var(--color-accent);
     border-bottom: 0;
     border-radius: 0.7rem 0.7rem 0 0;
 }
 
-/* Chargement : un trait de lumière balaie le haut de l'élément */
 [aria-busy="true"] {
     position: relative;
     opacity: 0.75;
@@ -1176,47 +555,83 @@ textarea:user-invalid {
     width: 100%;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
-    transform-origin: left;
 }
 
-/* ---------- 17. Pied de page : le générique de fin ---------- */
+/* ---------- 18. Administration : barre latérale ---------- */
+.admin-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+}
+
+.admin-sidebar {
+    position: sticky;
+    top: 3.5rem;
+    align-self: start;
+    height: calc(100vh - 3.5rem);
+    padding: var(--space-4) var(--space-3);
+    overflow-y: auto;
+    border-right: 1px solid var(--color-line);
+    background: var(--color-surface);
+}
+
+.admin-sidebar h2 {
+    margin: 0 0 var(--space-2) var(--space-2);
+    color: var(--color-muted);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.admin-sidebar ul {
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+}
+
+.admin-sidebar a {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 0.5rem var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+}
+
+.admin-sidebar a:hover {
+    background: rgb(244 238 227 / 7%);
+    color: var(--color-text);
+}
+
+.admin-sidebar a[aria-current="page"] {
+    background: rgb(244 238 227 / 11%);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+    font-weight: 700;
+}
+
+.admin-main {
+    min-width: 0;
+    padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 3vw, 2.5rem);
+}
+
+/* ---------- 20. Pied de page ---------- */
 .site-footer {
-    position: relative;
     margin-top: var(--space-6);
     padding: var(--space-5) 1rem var(--space-4);
+    border-top: 1px solid var(--color-line);
     color: var(--color-muted);
-    font-size: 0.75rem;
-    letter-spacing: 0.14em;
+    font-size: 0.95rem;
     text-align: center;
-    text-transform: uppercase;
-}
-
-.site-footer::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: 0.5rem;
-    background: var(--perforation);
 }
 
 .site-footer p {
     margin: 0;
 }
 
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    clip-path: inset(50%);
-}
-
-/* ---------- 18. Focus clavier (WCAG 2.4.7, 2.4.11, 2.4.13) ---------- */
-/* Contour or de 3 px, décalé de 3 px : visible sur tous les fonds du site */
+/* ---------- 21. Focus clavier (WCAG 2.4.7, 2.4.11, 2.4.13) ---------- */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -1228,9 +643,8 @@ summary:focus-visible,
     outline-offset: 3px;
 }
 
-/* ---------- 19. Mouvement ---------- */
+/* ---------- 22. Mouvement ---------- */
 @media (prefers-reduced-motion: no-preference) {
-    /* Transition entre pages (JSP = pages multiples) : fondu, en-tête fixe */
     @view-transition {
         navigation: auto;
     }
@@ -1241,55 +655,17 @@ summary:focus-visible,
         animation-timing-function: var(--ease);
     }
 
-    /* Voyant du projecteur : respiration lente */
-    .site-brand::before {
-        animation: lamp 5s ease-in-out infinite;
-    }
-
-    /* Le faisceau vacille comme un vieux projecteur */
-    .theater-beam {
-        animation: projector-flicker 7s ease-in-out infinite;
-    }
-
-    /* Le titre est « projeté » : balayage de gauche à droite */
-    .hero-copy h1 {
-        animation: projection var(--t-slow) var(--ease) both;
-    }
-
-    .hero-copy > :not(h1) {
-        animation: fade-up var(--t-slow) var(--ease) 200ms both;
-    }
-
-    .seat-row {
+    .hero-copy > * {
         animation: fade-up var(--t-slow) var(--ease) both;
     }
 
-    .seat-row:nth-child(2) { animation-delay: 90ms; }
-    .seat-row:nth-child(3) { animation-delay: 180ms; }
-    .seat-row:nth-child(4) { animation-delay: 270ms; }
-    .seat-row:nth-child(n + 5) { animation-delay: 360ms; }
+    .hero-copy > :nth-child(2) { animation-delay: 80ms; }
+    .hero-copy > :nth-child(3) { animation-delay: 160ms; }
+    .hero-copy > :nth-child(n + 4) { animation-delay: 240ms; }
 
     [aria-busy="true"]::after {
         animation: sweep 1.4s var(--ease) infinite;
     }
-}
-
-@keyframes lamp {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
-}
-
-@keyframes projector-flicker {
-    0%, 100% { opacity: 1; }
-    46% { opacity: 0.88; }
-    48% { opacity: 1; }
-    52% { opacity: 0.8; }
-    54% { opacity: 1; }
-}
-
-@keyframes projection {
-    from { clip-path: inset(0 100% 0 0); }
-    to { clip-path: inset(0 0 0 0); }
 }
 
 @keyframes fade-up {
@@ -1302,21 +678,21 @@ summary:focus-visible,
     to { transform: translateX(100%); }
 }
 
-/* ---------- 20. Responsive ---------- */
-@media (max-width: 48rem) {
-    .cinema-hero {
-        grid-template-columns: minmax(0, 1fr) minmax(9rem, 0.55fr);
-        padding-inline: var(--space-3);
-    }
-
-    .hero-visual {
-        min-height: 14rem;
-    }
-
-    .section-heading {
+/* ---------- 23. Responsive ---------- */
+@media (max-width: 64rem) {
+    .admin-shell {
         grid-template-columns: 1fr;
     }
 
+    .admin-sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-line);
+    }
+}
+
+@media (max-width: 48rem) {
     .site-header {
         align-items: flex-start;
         flex-direction: column;
@@ -1324,6 +700,20 @@ summary:focus-visible,
 
     .site-nav {
         width: 100%;
+    }
+
+    .featured-poster {
+        inset: 0;
+        -webkit-mask-image: linear-gradient(to bottom, #000 25%, transparent 85%);
+        mask-image: linear-gradient(to bottom, #000 25%, transparent 85%);
+    }
+
+    .hero-visual::after {
+        background: linear-gradient(to top, rgb(11 10 9 / 94%) 0, rgb(11 10 9 / 86%) 55%, rgb(11 10 9 / 70%) 100%);
+    }
+
+    .section-heading {
+        grid-template-columns: 1fr;
     }
 
     .page-heading {
@@ -1335,10 +725,6 @@ summary:focus-visible,
         grid-template-columns: 1fr;
     }
 
-    .welcome-card {
-        margin-left: 0;
-    }
-
     th,
     td {
         padding: 0.65rem 0.5rem;
@@ -1347,17 +733,11 @@ summary:focus-visible,
 
 @media (max-width: 30rem) {
     .cinema-hero {
-        min-height: 0;
-        grid-template-columns: 1fr;
-        gap: 0;
+        min-height: 32rem;
     }
 
     .hero-copy h1 {
-        max-width: 7ch;
-    }
-
-    .hero-visual {
-        min-height: 10rem;
+        max-width: 9ch;
     }
 
     main,
@@ -1374,11 +754,6 @@ summary:focus-visible,
         width: 100%;
     }
 
-    .dashboard-card {
-        grid-template-columns: 2.25rem minmax(0, 1fr) auto;
-    }
-
-    /* Affiches : deux colonnes décalées, comme un mur d'affiches */
     .films-container {
         --stagger: 1.5rem;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1390,9 +765,12 @@ summary:focus-visible,
         translate: 0 var(--stagger);
     }
 
-    .film-card h2,
-    .film-card h3 {
-        font-size: 1.1rem;
+    .film-card :is(h2, h3) {
+        font-size: 1.15rem;
+    }
+
+    .dashboard-card {
+        grid-template-columns: 2.25rem minmax(0, 1fr);
     }
 
     .form-actions,
@@ -1409,22 +787,18 @@ summary:focus-visible,
     }
 }
 
-/* ---------- 21. Préférences d'accessibilité ---------- */
+/* ---------- 24. Préférences d'accessibilité ---------- */
 @media (prefers-contrast: more) {
     :root {
-        --color-border: #9a958b;
-        --color-line: rgb(242 238 230 / 40%);
-        --color-line-strong: #b4aea3;
-        --color-muted: #e0dbd0;
+        --color-border: #a39b8f;
+        --color-line: rgb(244 238 227 / 40%);
+        --color-line-strong: #b8b0a3;
+        --color-muted: #e3ddd1;
     }
 
     .btn-secondary,
     .btn-danger {
         border-width: 2px;
-    }
-
-    .cinema-hero::after {
-        display: none;
     }
 }
 
@@ -1436,7 +810,6 @@ summary:focus-visible,
     }
 }
 
-/* Mode Windows « Contraste élevé » : les couleurs du système reprennent la main */
 @media (forced-colors: active) {
     .btn,
     button,
@@ -1445,13 +818,16 @@ summary:focus-visible,
         border: 1px solid ButtonText;
     }
 
-    .site-brand::before,
     .status::before {
         background: CanvasText;
     }
 
     .film-card img {
         outline: 1px solid CanvasText;
+    }
+
+    .hero-visual::after {
+        display: none;
     }
 
     a:focus-visible,
@@ -1473,8 +849,7 @@ summary:focus-visible,
         transition-duration: 0.01ms !important;
     }
 
-    .film-card:hover,
-    .film-card:hover img {
+    .film-card:hover {
         transform: none !important;
     }
 }
