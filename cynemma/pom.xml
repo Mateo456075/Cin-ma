@@ -23,6 +23,13 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- JSON (parsing des réponses TMDB) -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20240303</version>
+    </dependency>
+
     <!-- Servlet API (Version 6.1.0) -->
     <dependency>
       <groupId>jakarta.servlet</groupId>
