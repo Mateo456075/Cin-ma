@@ -62,7 +62,7 @@ public class CreatSalleServlet extends HttpServlet {
         if (nom == null || nom.trim().isEmpty()
                 || capaciteStr == null || capaciteStr.trim().isEmpty()
                 || typeSalleStr == null || dispositionStr == null || balconsStr == null) {
-            response.sendRedirect(request.getContextPath() + "/creerSalle");
+            response.sendRedirect(request.getContextPath() + "/creersalle");
             return;
         }
 
@@ -85,7 +85,7 @@ public class CreatSalleServlet extends HttpServlet {
             salleDAO.createAvecConfiguration(nouvelleSalle, config);
 
         } catch (IllegalArgumentException e) {
-            response.sendRedirect(request.getContextPath() + "/creerSalle");
+            response.sendRedirect(request.getContextPath() + "/creersalle");
             return;
         }
 

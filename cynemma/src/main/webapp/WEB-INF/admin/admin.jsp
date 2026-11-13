@@ -70,7 +70,7 @@
     <section class="card">
         <h2>Liste des salles de cinéma</h2>
         <p class="actions">
-            <a class="btn" href="${pageContext.request.contextPath}/creerSalle">+ Ajouter une salle</a>
+            <a class="btn" href="${pageContext.request.contextPath}/creersalle">+ Ajouter une salle</a>
         </p>
         <div class="table-container" role="region" aria-label="Salles de cinéma, défilement horizontal possible" tabindex="0">
             <table>

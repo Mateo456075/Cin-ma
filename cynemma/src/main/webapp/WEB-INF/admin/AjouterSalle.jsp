@@ -9,7 +9,7 @@
         <h1>Ajouter une salle</h1>
         <p class="form-hint">Tous les champs sont obligatoires.</p>
 
-        <form action="${pageContext.request.contextPath}/creerSalle" method="post">
+        <form action="${pageContext.request.contextPath}/creersalle" method="post">
             <input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}' />">
 
             <label for="nom">Nom de la salle</label>
