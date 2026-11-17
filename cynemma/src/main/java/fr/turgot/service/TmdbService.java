@@ -1,14 +1,15 @@
 package fr.turgot.service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import fr.turgot.dao.TmdbCacheDAO;
@@ -29,6 +31,7 @@ public class TmdbService {
     private static final String BASE_URL = "https://api.themoviedb.org/3";
     private static final String IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
     private static final int MAX_POSTER_BYTES = 10 * 1024 * 1024;
+    private static final Object[] TRAILER_LOCKS = createTrailerLocks();
     private static final TmdbCacheDAO CACHE_DAO = new TmdbCacheDAO();
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -41,27 +44,47 @@ public class TmdbService {
      * Un Optional vide signifie qu'aucune bande-annonce n'est disponible.
      */
     public static Optional<String> getTrailerKey(String filmTitle)
-            throws IOException, InterruptedException, SQLException {
+            throws TmdbApiException, InterruptedException, SQLException {
+        return getTrailerKey(filmTitle, null);
+    }
+
+    /**
+     * Retourne la bande-annonce, en limitant la recherche à l'année fournie si elle existe.
+     */
+    public static Optional<String> getTrailerKey(String filmTitle, Integer year)
+            throws TmdbApiException, InterruptedException, SQLException {
         String normalizedTitle = normalizeTitle(filmTitle);
-        Optional<CacheEntry> cached = CACHE_DAO.findByFilmTitle(normalizedTitle);
-        if (cached.isPresent()) {
-            return Optional.ofNullable(cached.get().trailerKey());
+        if (year != null && (year < 1888 || year > 9999)) {
+            throw new IllegalArgumentException("L'année doit être comprise entre 1888 et 9999.");
         }
 
-        String apiKey = getApiKey();
-        Integer tmdbId = searchMovieId(normalizedTitle, apiKey);
-        if (tmdbId == null) {
-            CACHE_DAO.save(normalizedTitle, null, null);
-            return Optional.empty();
-        }
+        String cacheTitle = cacheTitle(normalizedTitle, year);
+        Object lock = TRAILER_LOCKS[Math.floorMod(
+                normalizedTitle.toLowerCase(Locale.ROOT).hashCode(), TRAILER_LOCKS.length)];
+        synchronized (lock) {
+            Optional<CacheEntry> cached = CACHE_DAO.findByFilmTitle(cacheTitle);
+            if (cached.isPresent()) {
+                String cachedKey = cached.get().trailerKey();
+                if (cachedKey == null || isValidYouTubeKey(cachedKey)) {
+                    return Optional.ofNullable(cachedKey);
+                }
+            }
 
-        String trailerKey = findTrailerKey(tmdbId, "fr-FR", apiKey);
-        if (trailerKey == null) {
-            trailerKey = findTrailerKey(tmdbId, "en-US", apiKey);
-        }
+            String apiKey = getApiKey();
+            Integer tmdbId = searchMovieId(normalizedTitle, year, apiKey);
+            if (tmdbId == null) {
+                CACHE_DAO.save(cacheTitle, null, null);
+                return Optional.empty();
+            }
 
-        CACHE_DAO.save(normalizedTitle, tmdbId, trailerKey);
-        return Optional.ofNullable(trailerKey);
+            String trailerKey = findTrailerKey(tmdbId, "fr-FR", apiKey);
+            if (trailerKey == null) {
+                trailerKey = findTrailerKey(tmdbId, "en-US", apiKey);
+            }
+
+            CACHE_DAO.save(cacheTitle, tmdbId, trailerKey);
+            return Optional.ofNullable(trailerKey);
+        }
     }
 
     public static List<TmdbMovie> getNowPlayingMovies()
@@ -207,45 +230,92 @@ public class TmdbService {
     /**
      * Recherche le film correspondant au titre et retourne son identifiant TMDB.
      */
-    private static Integer searchMovieId(String title, String apiKey)
-            throws IOException, InterruptedException {
+    private static Integer searchMovieId(String title, Integer year, String apiKey)
+            throws TmdbApiException, InterruptedException {
         String url = BASE_URL + "/search/movie?api_key=" + encode(apiKey)
-                + "&language=fr-FR&query=" + encode(title);
-        JSONArray results = new JSONObject(fetch(url)).getJSONArray("results");
-        if (results.isEmpty()) {
-            return null;
+                + "&language=fr-FR&query=" + encode(title)
+                + (year == null ? "" : "&year=" + year);
+        try {
+            JSONArray results = new JSONObject(fetch(url)).getJSONArray("results");
+            if (results.isEmpty()) {
+                return null;
+            }
+            return results.getJSONObject(0).getInt("id");
+        } catch (JSONException e) {
+            throw new TmdbApiException("TMDB a retourné une réponse de recherche invalide.", e);
         }
-        return results.getJSONObject(0).getInt("id");
     }
 
     private static String findTrailerKey(int movieId, String language, String apiKey)
-            throws IOException, InterruptedException {
+            throws TmdbApiException, InterruptedException {
         String url = BASE_URL + "/movie/" + movieId + "/videos?api_key=" + encode(apiKey)
                 + "&language=" + encode(language);
-        JSONArray results = new JSONObject(fetch(url)).getJSONArray("results");
-        for (int i = 0; i < results.length(); i++) {
-            JSONObject video = results.getJSONObject(i);
-            if ("Trailer".equals(video.optString("type"))
-                    && "YouTube".equals(video.optString("site"))) {
-                return video.optString("key", null);
+        try {
+            JSONArray results = new JSONObject(fetch(url)).getJSONArray("results");
+            String firstTrailerKey = null;
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject video = results.getJSONObject(i);
+                if ("Trailer".equals(video.optString("type"))
+                        && "YouTube".equals(video.optString("site"))) {
+                    String key = video.optString("key", null);
+                    if (!isValidYouTubeKey(key)) {
+                        continue;
+                    }
+                    if (video.optBoolean("official", false)) {
+                        return key;
+                    }
+                    if (firstTrailerKey == null) {
+                        firstTrailerKey = key;
+                    }
+                }
             }
+            return firstTrailerKey;
+        } catch (JSONException e) {
+            throw new TmdbApiException("TMDB a retourné une réponse vidéo invalide.", e);
         }
-        return null;
     }
 
-    private static String fetch(String url) throws IOException, InterruptedException {
+    private static String fetch(String url) throws TmdbApiException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
 
-        HttpResponse<String> response =
-                HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response;
+        try {
+            response = HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (HttpTimeoutException e) {
+            throw new TmdbApiException("Le délai de réponse de TMDB est dépassé.", true, e);
+        } catch (IOException e) {
+            throw new TmdbApiException("Impossible de communiquer avec TMDB.", e);
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("TMDB a répondu avec le statut HTTP " + response.statusCode());
+            throw new TmdbApiException(
+                    "TMDB a répondu avec le statut HTTP " + response.statusCode());
         }
         return response.body();
+    }
+
+    private static String cacheTitle(String normalizedTitle, Integer year) {
+        String key = year == null ? normalizedTitle : normalizedTitle + " [" + year + "]";
+        if (key.length() > 255) {
+            throw new IllegalArgumentException(
+                    "Le titre est trop long pour être mis en cache avec cette année.");
+        }
+        return key;
+    }
+
+    private static boolean isValidYouTubeKey(String key) {
+        return key != null && key.matches("[A-Za-z0-9_-]{11}");
+    }
+
+    private static Object[] createTrailerLocks() {
+        Object[] locks = new Object[64];
+        for (int i = 0; i < locks.length; i++) {
+            locks[i] = new Object();
+        }
+        return locks;
     }
 
     private static String getApiKey() {
@@ -273,5 +343,26 @@ public class TmdbService {
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    public static final class TmdbApiException extends IOException {
+        private final boolean timeout;
+
+        private TmdbApiException(String message) {
+            this(message, false, null);
+        }
+
+        private TmdbApiException(String message, Throwable cause) {
+            this(message, false, cause);
+        }
+
+        private TmdbApiException(String message, boolean timeout, Throwable cause) {
+            super(message, cause);
+            this.timeout = timeout;
+        }
+
+        public boolean isTimeout() {
+            return timeout;
+        }
     }
 }

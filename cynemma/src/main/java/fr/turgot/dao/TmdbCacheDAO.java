@@ -4,7 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 import javax.naming.InitialContext;
@@ -14,9 +17,11 @@ import javax.sql.DataSource;
 public class TmdbCacheDAO {
 
     private static final String DATA_SOURCE_NAME = "java:comp/env/jdbc/cynema";
+    private static final Duration NEGATIVE_CACHE_TTL = Duration.ofDays(7);
+    private static final Duration TRAILER_CACHE_TTL = Duration.ofDays(30);
 
     public Optional<CacheEntry> findByFilmTitle(String filmTitle) throws SQLException {
-        String sql = "SELECT tmdb_id, trailer_key FROM tmdb_cache WHERE film_title = ?";
+        String sql = "SELECT tmdb_id, trailer_key, cached_at FROM tmdb_cache WHERE film_title = ?";
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -29,7 +34,14 @@ public class TmdbCacheDAO {
 
                 int tmdbIdValue = result.getInt("tmdb_id");
                 Integer tmdbId = result.wasNull() ? null : tmdbIdValue;
-                return Optional.of(new CacheEntry(tmdbId, result.getString("trailer_key")));
+                String trailerKey = result.getString("trailer_key");
+                Timestamp cachedAt = result.getTimestamp("cached_at");
+                Duration ttl = trailerKey == null ? NEGATIVE_CACHE_TTL : TRAILER_CACHE_TTL;
+                if (cachedAt == null
+                        || cachedAt.toInstant().isBefore(Instant.now().minus(ttl))) {
+                    return Optional.empty();
+                }
+                return Optional.of(new CacheEntry(tmdbId, trailerKey));
             }
         }
     }

@@ -15,10 +15,10 @@ bande-annonce YouTube avec TheMovieDB (TMDB), puis renvoie une réponse JSON.
 Avant de contacter TMDB, elle cherche le résultat dans la table locale
 `tmdb_cache`.
 
-La route déclarée dans le code est :
+La route déclarée dans le code accepte un titre et, facultativement, une année :
 
 ```text
-GET /api/trailer?film=Interstellar
+GET /api/trailer?film=Interstellar&year=2014
 ```
 
 Le chemin complet dépend du contexte de déploiement. Si l’application est
@@ -71,25 +71,30 @@ TmdbCacheDAO.findByFilmTitle()
 2. `TrailerServlet.doGet()` lit le paramètre de requête `film`.
 3. Si le paramètre est vide ou absent, la servlet renvoie HTTP 400 et ne
    contacte ni le cache ni TMDB.
-4. Sinon, elle appelle `TmdbService.getTrailerKey(film)`.
+4. Sinon, elle appelle `TmdbService.getTrailerKey(film, year)` ; `year` est
+   facultatif.
 5. Le service enlève les espaces au début et à la fin et réduit les suites
    d’espaces à un seul espace.
 6. Le service demande à `TmdbCacheDAO` de chercher le titre dans
    `tmdb_cache`, par la `DataSource` JNDI `java:comp/env/jdbc/cynema`.
-7. Si une ligne existe, le service retourne sa clé de bande-annonce. Il ne lit
-   alors pas la clé TMDB et ne fait aucun appel réseau à TMDB.
+7. Le DAO lit aussi `cached_at`. Une clé trouvée est conservée 30 jours ; un
+   résultat négatif (clé `NULL`) est conservé 7 jours. Une entrée expirée est
+   traitée comme un cache miss.
 8. En cas d’absence dans le cache, le service récupère la clé TMDB dans la
    variable d’environnement `TMDB_API_KEY`, ou dans la propriété JVM
    `tmdb.api.key` si la variable n’est pas définie.
-9. Il envoie une requête TMDB de recherche par titre et prend l’identifiant du
-   premier résultat.
-10. Avec cet identifiant, il demande les vidéos du film en français. S’il ne
-    trouve pas de vidéo de type `Trailer` hébergée sur `YouTube`, il recommence
-    la recherche des vidéos en anglais.
+9. Il envoie une requête TMDB de recherche par titre, ajoute le filtre d’année
+   si `year` est fourni, puis prend l’identifiant du premier résultat.
+10. Avec cet identifiant, il demande les vidéos du film en français, puis en
+    anglais si nécessaire. Pour chaque langue, il préfère une vidéo `Trailer`
+    YouTube marquée `official: true` et se replie sur la première bande-annonce
+    YouTube valide si aucune n’est officielle.
 11. Le service enregistre dans `tmdb_cache` le titre, l’identifiant TMDB et la
     clé de vidéo. Si aucun film ou aucune bande-annonce n’est trouvé, il
     enregistre aussi ce résultat négatif.
-12. La servlet fabrique le JSON et le renvoie au client.
+12. Un verrou léger par titre normalisé évite que plusieurs threads lancent
+    simultanément la même recherche après un cache miss. La servlet fabrique le
+    JSON et le renvoie au client.
 
 Les fichiers et méthodes principaux sont
 [TrailerServlet.java](cynemma/src/main/java/fr/turgot/servlet/api/TrailerServlet.java),
@@ -118,9 +123,8 @@ public class TrailerServlet extends HttpServlet {
 ```java
 String film = request.getParameter("film");
 if (film == null || film.isBlank()) {
-    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    write(response, new JSONObject()
-            .put("erreur", "Paramètre 'film' manquant").toString());
+    writeError(response, HttpServletResponse.SC_BAD_REQUEST,
+            "Paramètre 'film' manquant");
     return;
 }
 ```
@@ -140,21 +144,17 @@ Au début de `doGet`, la servlet définit :
 ```java
 response.setContentType("application/json");
 response.setCharacterEncoding("UTF-8");
-response.setHeader("Access-Control-Allow-Origin", "*");
 ```
 
-Le client reçoit une réponse de type JSON encodée en UTF-8. L’en-tête CORS
-autorise les navigateurs de toutes les origines à lire la réponse. Cette
-autorisation est large ; elle n’authentifie pas les utilisateurs et ne protège
-pas la route.
+Le client reçoit une réponse JSON encodée en UTF-8. Aucun en-tête CORS
+permissif n’est ajouté ; le parcours prévu est Same-Origin.
 
 ### Appel au service et réponse
 
 ```java
-Optional<String> key = TmdbService.getTrailerKey(film);
+Optional<String> key = TmdbService.getTrailerKey(film, year);
 if (key.isEmpty()) {
-    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-    // la servlet renvoie trailer: null et un message
+    // la servlet renvoie une erreur JSON avec le statut 404
     return;
 }
 ```
@@ -162,7 +162,7 @@ if (key.isEmpty()) {
 `Optional<String>` représente une valeur qui peut être présente ou absente.
 Ici, l’absence signifie que le service n’a pas de clé de bande-annonce
 disponible. Le code renvoie alors HTTP 404. Si la clé existe, la servlet crée
-l’URL YouTube et la place dans le JSON.
+les URLs de lecture et d’intégration depuis cette clé.
 
 La méthode `write(...)` écrit finalement le texte JSON dans le corps de la
 réponse HTTP avec `response.getWriter()`.
@@ -190,23 +190,34 @@ secondes dans `fetch(...)`.
 ### Méthode d’entrée du service
 
 ```java
-public static Optional<String> getTrailerKey(String filmTitle)
-        throws IOException, InterruptedException, SQLException {
+public static Optional<String> getTrailerKey(String filmTitle, Integer year)
+        throws TmdbApiException, InterruptedException, SQLException {
     String normalizedTitle = normalizeTitle(filmTitle);
-    Optional<CacheEntry> cached =
-            CACHE_DAO.findByFilmTitle(normalizedTitle);
-    if (cached.isPresent()) {
-        return Optional.ofNullable(cached.get().trailerKey());
+    String cacheTitle = cacheTitle(normalizedTitle, year);
+    Object lock = TRAILER_LOCKS[Math.floorMod(
+            normalizedTitle.toLowerCase(Locale.ROOT).hashCode(), TRAILER_LOCKS.length)];
+    synchronized (lock) {
+        Optional<CacheEntry> cached =
+                CACHE_DAO.findByFilmTitle(cacheTitle);
+        if (cached.isPresent()) {
+            String cachedKey = cached.get().trailerKey();
+            if (cachedKey == null || isValidYouTubeKey(cachedKey)) {
+                return Optional.ofNullable(cachedKey);
+            }
+        }
+        // ... appels TMDB en cas de cache miss
     }
-    // ... appels TMDB en cas de cache miss
 }
 ```
 
 - La méthode reçoit le titre venant de la servlet.
+- `year` est facultatif et sert au filtre `/search/movie`.
 - `normalizeTitle(...)` vérifie le titre et normalise ses espaces.
-- `findByFilmTitle(...)` consulte la base.
-- `Optional.empty()` renvoyé par le DAO signifie qu’aucune ligne de cache
-  n’existe.
+- `cacheTitle(...)` ajoute l’année à la clé stockée lorsqu’elle a été fournie.
+- Le verrou borné sérialise les cache miss simultanés d’un même titre dans la
+  même JVM ; le cache est relu une fois le verrou obtenu.
+- `findByFilmTitle(...)` consulte la base et traite une entrée expirée comme
+  absente.
 - Si une ligne existe, `Optional.ofNullable(...)` retourne sa clé, ou un
   `Optional` vide si cette ligne mémorise une absence de bande-annonce.
 - Les types déclarés après `throws` signalent des erreurs que la servlet doit
@@ -232,15 +243,9 @@ Dans `searchMovieId(...)`, les valeurs sont encodées avec
 notamment de représenter correctement les espaces et les caractères accentués.
 
 La méthode lit le tableau JSON `results`. S’il est vide, elle retourne `null`.
-Sinon, elle récupère l’identifiant du **premier** résultat :
-
-```java
-JSONArray results = new JSONObject(fetch(url)).getJSONArray("results");
-if (results.isEmpty()) {
-    return null;
-}
-return results.getJSONObject(0).getInt("id");
-```
+Sinon, elle récupère l’identifiant du **premier** résultat. Quand `year` est
+fourni à la servlet, le service ajoute aussi le filtre TMDB `year` à
+`/search/movie`, ce qui aide à départager les films homonymes.
 
 Le choix du premier résultat est un choix simple, mais ne garantit pas toujours
 qu’il s’agit du bon film si plusieurs œuvres ont le même titre.
@@ -267,9 +272,10 @@ qui satisfont les deux conditions :
 ```
 
 `optString(...)` lit une propriété JSON sous forme de chaîne sans faire échouer
-la lecture si elle manque. La méthode retourne la propriété `key` de la
-première vidéo correspondante. Cette clé permet de construire le lien
-`https://www.youtube.com/watch?v=...`.
+la lecture si elle manque. La méthode préfère la propriété `key` d’une vidéo
+marquée `official: true`. Si aucune vidéo officielle ne correspond, elle
+retourne la première clé YouTube valide. Cette clé sert à construire les URLs
+de lecture et d’intégration.
 
 ### Choix de la langue
 
@@ -285,9 +291,8 @@ Si cette recherche ne retourne pas de clé, il demande ensuite :
 findTrailerKey(tmdbId, "en-US", apiKey)
 ```
 
-Il s’agit d’un repli français vers anglais. Le service ne compare pas plusieurs
-bandes-annonces entre elles : il conserve la première vidéo qui est à la fois
-de type `Trailer` et de site `YouTube`.
+Il s’agit d’un repli français vers anglais. Dans les résultats de chaque langue,
+une vidéo officielle est préférée à une vidéo non officielle.
 
 ### Envoi HTTP et traitement du statut
 
@@ -305,7 +310,9 @@ return response.body();
 - `.GET()` demande une opération HTTP GET.
 - `HTTP.send(...)` envoie la requête et attend sa réponse.
 - `BodyHandlers.ofString(UTF_8)` lit le corps de la réponse comme texte UTF-8.
-- Un statut hors de la plage 200–299 est transformé en `IOException`.
+- Un statut hors de la plage 200–299 est transformé en `TmdbApiException`.
+- Un délai expiré est marqué pour permettre au contrôleur de répondre 504 ; les
+  autres erreurs HTTP/réseau ou réponses JSON TMDB invalides conduisent à 502.
 - Le JSON retourné par TMDB est ensuite analysé avec `JSONObject` et
   `JSONArray`.
 
@@ -320,7 +327,7 @@ et il n’y a pas de `TmdbCache` déclaré dans `persistence.xml`.
 ### Recherche d’une entrée
 
 ```sql
-SELECT tmdb_id, trailer_key
+SELECT tmdb_id, trailer_key, cached_at
 FROM tmdb_cache
 WHERE film_title = ?
 ```
@@ -332,6 +339,9 @@ le titre dans la requête SQL.
 Le DAO renvoie `Optional.empty()` si aucune ligne n’existe. Si une ligne existe,
 il renvoie un `CacheEntry` Java contenant `tmdbId` et `trailerKey`. Ces champs
 peuvent être `null`, notamment pour mémoriser qu’aucun résultat n’a été trouvé.
+Il lit aussi `cached_at` : une clé existante expire après 30 jours et une clé
+`NULL` après 7 jours. Une entrée expirée est traitée comme absente, sans être
+supprimée ; une recherche ultérieure peut la remplacer.
 
 ### Insertion ou mise à jour
 
@@ -379,7 +389,7 @@ La définition se trouve dans
 
 | Colonne | Type | Rôle |
 |---|---|---|
-| `film_title` | `VARCHAR(255)` | Titre servant de clé primaire du cache. |
+| `film_title` | `VARCHAR(255)` | Titre servant de clé primaire du cache ; l’année recherchée est ajoutée à cette valeur quand elle est fournie. |
 | `tmdb_id` | `INT`, nullable | Identifiant du film chez TMDB ; `NULL` si aucun résultat n’a été trouvé. |
 | `trailer_key` | `VARCHAR(64)`, nullable | Identifiant YouTube de la bande-annonce ; `NULL` si aucune vidéo adéquate n’a été trouvée. |
 | `cached_at` | `TIMESTAMP` | Date de création ou de dernière mise à jour de la ligne. |
@@ -448,16 +458,17 @@ Voici les formes réellement construites dans son code.
 
 ```json
 {
-  "trailer": "https://www.youtube.com/watch?v=cleExemple"
+  "key": "cleExemple1",
+  "watchUrl": "https://www.youtube.com/watch?v=cleExemple1",
+  "embedUrl": "https://www.youtube-nocookie.com/embed/cleExemple1"
 }
 ```
 
-- `trailer` est une chaîne (`String`).
-- Sa valeur est construite en ajoutant la clé trouvée à l’URL YouTube.
-- Le client peut utiliser ce lien pour ouvrir la vidéo ou, après vérification
-  des règles YouTube et de sécurité de son interface, l’intégrer.
+- `key` est l’identifiant YouTube.
+- `watchUrl` ouvre la vidéo sur YouTube.
+- `embedUrl` est destiné à un lecteur intégré, par exemple dans une modale.
 
-Le nom `cleExemple` est un substitut pédagogique, pas une clé réelle capturée.
+`cleExemple1` est un substitut pédagogique, pas une clé réelle capturée.
 La servlet ne fixe pas explicitement le statut pour cette branche : le statut
 HTTP reste normalement 200 par défaut.
 
@@ -475,13 +486,12 @@ HTTP reste normalement 200 par défaut.
 
 ```json
 {
-  "trailer": null,
-  "message": "Aucune bande-annonce disponible"
+  "erreur": "Aucune bande-annonce disponible"
 }
 ```
 
-- `trailer` est la valeur JSON `null`, pas la chaîne `"null"`.
-- `message` est une chaîne.
+`erreur` est une chaîne. L’API ne distingue pas dans ce message l’absence du
+film de l’absence de vidéo.
 
 Le service utilise la même réponse négative si TMDB ne trouve aucun film ou
 s’il ne trouve pas de bande-annonce YouTube adéquate. Le client ne peut donc
@@ -498,7 +508,19 @@ pas distinguer ces deux cas à partir de cette réponse.
 La servlet restaure le statut d’interruption du thread avec
 `Thread.currentThread().interrupt()`, puis renvoie 503.
 
-### Autre erreur — HTTP 500
+### Erreur TMDB — HTTP 502 ou 504
+
+```json
+{
+  "erreur": "Le service TMDB est temporairement indisponible"
+}
+```
+
+La servlet renvoie 504 pour un délai d’attente dépassé, 502 pour les autres
+erreurs réseau/HTTP ou les réponses TMDB invalides. Le détail de l’exception est
+journalisé, pas envoyé au client.
+
+### Erreur interne — HTTP 500
 
 ```json
 {
@@ -506,30 +528,31 @@ La servlet restaure le statut d’interruption du thread avec
 }
 ```
 
-Le détail de l’exception n’est pas envoyé au client. La servlet l’écrit dans le
-journal du conteneur avec `getServletContext().log(...)`.
+Cette réponse couvre notamment les erreurs SQL et une configuration manquante
+de la clé TMDB ou de la `DataSource`.
 
 ## 10. Gestion réelle des erreurs et limites
 
 | Situation | Comportement observé dans le code |
 |---|---|
 | Paramètre `film` absent ou blanc | La servlet répond 400 avant l’appel du service. |
-| Titre de plus de 255 caractères | `normalizeTitle(...)` lève `IllegalArgumentException`; la servlet répond 500. |
+| Titre de plus de 255 caractères | `normalizeTitle(...)` lève `IllegalArgumentException`; la servlet répond 400. |
+| Paramètre `year` non numérique ou hors plage 1888–9999 | La servlet ou le service rejette la requête avec HTTP 400. |
 | TMDB ne retourne aucun film | Le service enregistre un résultat négatif dans le cache et renvoie un `Optional` vide ; la servlet répond 404. |
 | Film présent mais aucune bande-annonce YouTube adéquate | Le service essaie d’abord `fr-FR`, puis `en-US`; si les deux échouent, il met en cache une clé nulle et la servlet répond 404. |
 | Clé TMDB absente | `getApiKey()` lève `IllegalStateException` lors d’un cache miss ; la servlet répond 500 et journalise l’exception. |
-| Clé TMDB invalide | TMDB renverra probablement un statut non 2xx ; `fetch(...)` lève une `IOException`, puis la servlet répond 500. Le code ne traduit pas spécifiquement une erreur d’authentification en 401/403. |
-| Limite de requêtes TMDB ou autre statut non 2xx | `fetch(...)` lève une `IOException`; la servlet répond 500. Il n’y a pas de traitement spécifique du statut 429. |
-| Délai réseau ou indisponibilité de TMDB | Une exception réseau remonte au contrôleur ; la réponse est normalement 500. Aucun nouvel essai automatique n’est codé. |
-| JSON TMDB inattendu ou invalide | L’analyse par `JSONObject`/`JSONArray` échoue ; l’exception remonte et la servlet répond 500. |
+| Clé TMDB invalide | TMDB renvoie un statut non 2xx ; la servlet répond 502. Le code ne traduit pas spécifiquement une erreur d’authentification en 401/403. |
+| Limite de requêtes TMDB ou autre statut non 2xx | La servlet répond 502. Il n’y a pas de traitement spécifique du statut 429. |
+| Délai d’attente TMDB dépassé | La servlet répond 504. |
+| Autre problème réseau TMDB | La servlet répond 502. Aucun nouvel essai automatique n’est codé. |
+| JSON TMDB inattendu ou invalide | Le service convertit l’erreur d’analyse en erreur externe ; la servlet répond 502. |
 | Table absente ou erreur SQL | Le DAO lève `SQLException`; la servlet répond 500 et journalise l’erreur. |
 | JNDI `DataSource` non configurée | Le DAO transforme `NamingException` en `SQLException`; la réponse est 500. |
 | Thread interrompu pendant l’appel HTTP | La servlet renvoie 503 et rétablit le drapeau d’interruption. |
 
-Le code ne contient pas de cache à durée de vie limitée. `cached_at` est
-enregistré, mais aucune méthode ne l’utilise pour invalider une entrée. Une
-réponse négative peut donc rester en cache indéfiniment, même si une
-bande-annonce est ajoutée ultérieurement à TMDB.
+Le cache expire après 7 jours pour les absences (clé `NULL`) et après 30 jours
+pour les clés existantes. Il n’y a pas de tâche de nettoyage : les lignes
+expirées restent dans la table jusqu’à leur remplacement.
 
 ## 11. Ce que l’analyse du dépôt confirme — et ne confirme pas
 
@@ -578,7 +601,7 @@ bande-annonce est ajoutée ultérieurement à TMDB.
 - **Encodage URL** : transformation d’une valeur pour qu’elle soit sûre à
   insérer dans une URL.
 - **Statut HTTP** : code qui indique le résultat global de la requête, par
-  exemple 200, 400, 404 ou 500.
+  exemple 200, 400, 404, 502, 504 ou 500.
 
 ### Choix techniques et avantages observés
 
@@ -590,40 +613,41 @@ bande-annonce est ajoutée ultérieurement à TMDB.
 - La clé TMDB est lue depuis l’environnement ou les propriétés JVM, pas
   directement depuis le code source actuel.
 - Les délais de connexion et de requête HTTP sont bornés.
+- Les cache miss simultanés d’un même titre sont sérialisés dans une JVM par
+  un verrou parmi 64 verrous partagés.
 - L’utilisation de `JSONObject` évite de construire les réponses JSON en
   concaténant manuellement des chaînes.
 
 ### Limites et améliorations possibles
 
 1. **Clé du cache basée sur le titre.** Deux films homonymes peuvent entrer en
-   conflit. Une clé fondée sur l’identifiant local du film serait plus stable,
-   mais demanderait d’adapter le contrat de la route et le schéma.
-2. **Premier résultat TMDB choisi.** Le code ne compare ni l’année ni d’autres
-   critères pour confirmer qu’il s’agit du bon film.
-3. **Pas d’expiration du cache.** La colonne `cached_at` pourrait servir à
-   définir une durée de validité ou une stratégie d’invalidation.
-4. **Erreurs externes peu différenciées.** Le contrôleur répond généralement
-   500 aux erreurs TMDB, y compris aux statuts qui pourraient être gérés
-   séparément.
-5. **Configuration JNDI à fournir.** `web.xml` déclare la référence, mais le
+   conflit quand la recherche ne fournit pas d’année. Une clé fondée sur
+   l’identifiant local du film serait plus stable, mais demanderait d’adapter le
+   contrat de la route et le schéma.
+2. **Premier résultat TMDB choisi.** L’année peut réduire les homonymies, mais
+   le service prend toujours le premier résultat retourné par TMDB.
+3. **Durées de cache fixes.** Les TTL sont de 7 et 30 jours et ne sont pas
+   configurables.
+4. **Configuration JNDI à fournir.** `web.xml` déclare la référence, mais le
    serveur doit la relier à une `DataSource` réelle.
-6. **Route non reliée à l’interface dans les sources examinées.** Un appel de
+5. **Route non reliée à l’interface dans les sources examinées.** Un appel de
    la page de séances à cette route n’a pas été trouvé.
-7. **CORS ouvert à toutes les origines.** `Access-Control-Allow-Origin: *` est
-   large ; la valeur devrait correspondre au besoin réel de déploiement.
-8. **Pas de reprise automatique ni de pagination.** Le service ne réessaie pas
+6. **Pas de reprise automatique ni de pagination.** Le service ne réessaie pas
    après une erreur réseau et ne parcourt que le premier résultat de recherche.
-9. **Parallélisme des cache miss.** Deux requêtes simultanées pour le même
-   nouveau titre peuvent chacune appeler TMDB avant que l’une ait enregistré
-   le résultat.
+7. **Le filtre année reste facultatif.** Sans `year`, une recherche par titre
+   peut encore choisir le mauvais film homonyme.
+8. **Cache par titre.** La recherche avec année utilise une clé de cache qui
+   inclut cette année ; deux films homonymes recherchés sans année peuvent
+   toujours partager une entrée.
 
 ## 13. Questions possibles à l’oral
 
 ### 1. Quelle est l’URL de la route déclarée dans le code ?
 
-La servlet est annotée `@WebServlet("/api/trailer")`. Le paramètre attendu est
-`film`, par exemple `/api/trailer?film=Interstellar`. Le contexte de l’URL
-complète dépend du déploiement.
+La servlet est annotée `@WebServlet("/api/trailer")`. Le paramètre obligatoire
+est `film` ; `year` est facultatif. Par exemple :
+`/api/trailer?film=Interstellar&year=2014`. Le contexte de l’URL complète
+dépend du déploiement.
 
 ### 2. Quelle classe reçoit la requête HTTP ?
 
@@ -649,20 +673,20 @@ titre.
 
 ### 6. Quelle donnée sert de clé dans `tmdb_cache` ?
 
-`film_title` est la clé primaire. Le titre est normalisé côté Java avant la
-recherche. Ce choix est simple, mais deux films avec le même titre peuvent être
-confondus.
+`film_title` est la clé primaire. Le titre normalisé est utilisé seul sans
+année ; si une année est fournie, elle est ajoutée à cette clé de cache pour
+séparer les résultats par année.
 
 ### 7. Comment le service trouve-t-il l’identifiant TMDB ?
 
-Il appelle `/search/movie` avec le titre encodé, analyse `results` et prend le
-champ `id` du premier élément. Il ne fait pas de vérification supplémentaire
-sur l’année ou le réalisateur.
+Il appelle `/search/movie` avec le titre encodé, ajoute le filtre `year` s’il a
+été fourni, puis prend le champ `id` du premier élément retourné par TMDB.
 
 ### 8. Comment une bande-annonce est-elle reconnue ?
 
 Dans les résultats de `/movie/{id}/videos`, le service garde une entrée dont
-`type` vaut `Trailer` et `site` vaut `YouTube`. Il retourne son champ `key`.
+`type` vaut `Trailer` et `site` vaut `YouTube`. Il privilégie les vidéos
+`official: true`, puis se replie sur la première clé YouTube valide.
 
 ### 9. Comment fonctionne le repli de langue ?
 
@@ -696,8 +720,8 @@ YouTube et l’horodatage.
 ### 14. Que renvoie Cynemma si TMDB ne trouve pas de vidéo ?
 
 Le service enregistre une ligne avec une clé de bande-annonce nulle et retourne
-un `Optional` vide. La servlet répond HTTP 404 avec `trailer: null` et un
-message. Le même JSON est utilisé si aucun film n’a été trouvé.
+un `Optional` vide. La servlet répond HTTP 404 avec une propriété `erreur`.
+Le même JSON est utilisé si aucun film n’a été trouvé.
 
 ### 15. Quelles configurations sont nécessaires pour déployer cette route ?
 

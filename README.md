@@ -110,27 +110,31 @@ Les servlets effectuent des vérifications de session et de rôle pour plusieurs
 
 ### API TMDB et cache
 
-La servlet `TrailerServlet` expose `GET /api/trailer?film=<titre>` (le chemin
-est relatif au contexte de déploiement, par exemple
-`/cinema/api/trailer?film=Interstellar`). Elle renvoie une réponse JSON
-contenant un lien YouTube ou une erreur. La clé TMDB est lue côté serveur dans
-`TMDB_API_KEY`, avec la propriété JVM `tmdb.api.key` comme solution de repli.
+La servlet `TrailerServlet` expose `GET /api/trailer?film=<titre>` avec le
+paramètre facultatif `year=<année>` (le chemin est relatif au contexte de
+déploiement, par exemple `/cinema/api/trailer?film=Interstellar&year=2014`).
+Une réponse positive contient la clé YouTube, `watchUrl` et `embedUrl`. La clé
+TMDB est lue côté serveur dans `TMDB_API_KEY`, avec la propriété JVM
+`tmdb.api.key` comme solution de repli.
 
-`TmdbService` consulte d’abord la table `tmdb_cache`. En cas d’absence, il
-recherche le film par titre, prend le premier résultat TMDB, puis cherche une
-vidéo de type `Trailer` hébergée sur YouTube en français et, si nécessaire, en
-anglais. Il enregistre également les résultats sans bande-annonce. Le cache est
-indexé par titre et ne comporte pas de durée d’expiration automatique.
+`TmdbService` consulte d’abord la table `tmdb_cache`. En cas d’absence ou
+d’expiration, il recherche le film par titre et, si fourni, par année, puis
+cherche une vidéo de type `Trailer` hébergée sur YouTube, en privilégiant les
+vidéos officielles. Il essaie le français puis l’anglais si nécessaire. Le
+cache expire après 7 jours pour les absences de bande-annonce et 30 jours pour
+les clés existantes.
 
 Pour le back-office, l’employé peut aussi consulter les nouveautés et préparer
 un import après vérification sur `/employe/tmdb/catalogue`. Ce parcours est
 distinct de `/api/trailer` : il utilise directement `TmdbService` et enregistre
 le film dans le catalogue après validation des champs.
 
-La servlet de bande-annonce ne vérifie pas de rôle de session et ajoute
-`Access-Control-Allow-Origin: *`. Aucun appel de `/api/trailer` depuis les JSP
-ou le JavaScript de l’application n’a été identifié ; la route est exposée,
-mais son utilisation par l’interface n’est pas établie.
+La servlet de bande-annonce ne vérifie pas de rôle de session et n’ajoute pas
+d’en-tête CORS permissif ; le navigateur n’autorise donc pas son utilisation
+depuis une autre origine. Cette restriction CORS ne constitue pas un contrôle
+d’accès pour les clients non navigateurs. Aucun appel de `/api/trailer` depuis
+les JSP ou le JavaScript de l’application n’a été identifié ; la route est
+exposée, mais son utilisation par l’interface n’est pas établie.
 
 Pour une explication détaillée du fonctionnement de l’API, de son parcours de
 requête et de l’intégration TMDB, consultez
