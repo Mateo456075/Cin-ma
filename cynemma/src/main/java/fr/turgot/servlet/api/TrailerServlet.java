@@ -12,17 +12,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * API REST — Bande-annonce d'un film.
- *
- * GET /api/trailer?film=NomDuFilm
- *
- * Réponses JSON :
- *   200 { "trailer": "https://www.youtube.com/watch?v=XXXX" }
- *   400 { "erreur": "Paramètre 'film' manquant" }
- *   404 { "trailer": null, "message": "Aucune bande-annonce disponible" }
- *   500 { "erreur": "Erreur interne" }
- */
 @WebServlet("/api/trailer")
 public class TrailerServlet extends HttpServlet {
 
