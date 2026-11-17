@@ -33,7 +33,7 @@ Le projet se distingue notamment par une interface sombre, typographique et comp
 | --- | --- |
 | Visiteur | Consulter la page d’accueil et les films, créer un compte et se connecter |
 | Client | Parcourir les films et séances, effectuer une réservation de places et afficher son résultat |
-| Employé | Créer, modifier et supprimer des films ; créer et consulter les séances |
+| Employé | Créer, modifier et supprimer des films ; créer et consulter les séances ; consulter les nouveautés TMDB et préparer leur import après validation |
 | Administrateur | Consulter et gérer les comptes, modifier les rôles et ajouter des salles |
 | Transverse | Changer le mot de passe, se déconnecter, téléverser une affiche de film |
 
@@ -70,11 +70,12 @@ Ces pratiques contribuent à une navigation plus inclusive. **Aucune campagne de
 
 | Technologie | Utilisation |
 | --- | --- |
-| Java | Servlets, logique applicative et accès aux données. Le POM configure `maven.compiler.release` à **25**. |
+| Java | Servlets, logique applicative et accès aux données. Le POM configure `maven.compiler.release` à **21**. |
 | Jakarta Servlet 6.1 | Contrôleurs HTTP et annotations de servlet. |
 | JSP et JSTL | Vues rendues côté serveur et affichage conditionnel. |
 | Jakarta Persistence (JPA) et Hibernate 6.5 | Mapping objet-relationnel et persistance. |
 | MySQL | Base relationnelle ; pilote Connector/J 8.3. |
+| TMDB et `org.json` | Recherche de bandes-annonces et de nouveautés ; lecture des réponses JSON de l’API externe. |
 | Maven | Dépendances et assemblage d’une archive WAR. |
 | BCrypt (`jbcrypt`) | Hashage des mots de passe lors de la création et de la mise à jour. |
 | Jakarta Mail | Envoi du courriel de confirmation de réservation. |
@@ -107,6 +108,30 @@ Les servlets effectuent des vérifications de session et de rôle pour plusieurs
 
 **Limite importante :** aucune classe annotée `@WebFilter` n’a été trouvée dans le code analysé. Le contrôle observé est effectué dans les servlets concernées ; il ne faut donc pas supposer qu’un filtre global protège automatiquement tous les chemins comme `/admin` ou `/employe`.
 
+### API TMDB et cache
+
+La servlet `TrailerServlet` expose `GET /api/trailer?film=<titre>` (le chemin
+est relatif au contexte de déploiement, par exemple
+`/cinema/api/trailer?film=Interstellar`). Elle renvoie une réponse JSON
+contenant un lien YouTube ou une erreur. La clé TMDB est lue côté serveur dans
+`TMDB_API_KEY`, avec la propriété JVM `tmdb.api.key` comme solution de repli.
+
+`TmdbService` consulte d’abord la table `tmdb_cache`. En cas d’absence, il
+recherche le film par titre, prend le premier résultat TMDB, puis cherche une
+vidéo de type `Trailer` hébergée sur YouTube en français et, si nécessaire, en
+anglais. Il enregistre également les résultats sans bande-annonce. Le cache est
+indexé par titre et ne comporte pas de durée d’expiration automatique.
+
+Pour le back-office, l’employé peut aussi consulter les nouveautés et préparer
+un import après vérification sur `/employe/tmdb/catalogue`. Ce parcours est
+distinct de `/api/trailer` : il utilise directement `TmdbService` et enregistre
+le film dans le catalogue après validation des champs.
+
+La servlet de bande-annonce ne vérifie pas de rôle de session et ajoute
+`Access-Control-Allow-Origin: *`. Aucun appel de `/api/trailer` depuis les JSP
+ou le JavaScript de l’application n’a été identifié ; la route est exposée,
+mais son utilisation par l’interface n’est pas établie.
+
 ### Modèle métier
 
 Les principales entités sont `Utilisateur` (avec les rôles client, employé et administrateur), `Film`, `Salle`, `Rangee`, `Siege`, `Seance`, `Reservation`, `Billet` et `CarteFidelite`. Le script SQL [init_database.sql](cynemma/init_database.sql) décrit notamment les liens entre films et séances, salles et rangées, puis réservations, billets et sièges.
@@ -124,6 +149,8 @@ Cin-ma/
         ├── main/
         │   ├── java/fr/turgot/
         │   │   ├── dao/           # DAO et modèles JPA
+        │   │   ├── dto/           # Données transférées depuis TMDB
+        │   │   ├── service/       # Appels TMDB et logique d'intégration
         │   │   ├── servlet/       # Routes et contrôleurs
         │   │   └── utils/         # JPA, CSRF, sessions et utilitaires
         │   ├── resources/         # persistence.xml
@@ -133,14 +160,12 @@ Cin-ma/
 
 ## Prérequis
 
-- JDK correspondant à la version de compilation configurée dans le projet : **Java 25** (`maven.compiler.release` dans [pom.xml](cynemma/pom.xml)).
+- JDK 21 ou ultérieur ; le projet compile avec l’API du langage Java 21 (`maven.compiler.release` dans [pom.xml](cynemma/pom.xml)).
 - Maven.
 - MySQL compatible avec le schéma de [init_database.sql](cynemma/init_database.sql) ; le script signale que MySQL 8.0.16 ou supérieur applique les contraintes `CHECK`.
-- Un conteneur web compatible avec Jakarta Servlet 6.1 pour déployer le WAR. Vérifier la compatibilité entre le conteneur choisi et le JDK 25 de l’environnement.
+- Un conteneur web compatible avec Jakarta Servlet 6.1 pour déployer le WAR. Le POM dépend de Servlet 6.1, tandis que `web.xml` déclare un descripteur de version 6.0 ; la compatibilité de cette combinaison avec le conteneur choisi reste à vérifier.
 
 Le dépôt ne contient pas de wrapper Maven, de configuration Docker ou de script de lancement de conteneur.
-
-> **Version Java :** le dépôt ne cible pas Java 17 ou 21 actuellement. Bien que ces versions soient des LTS courantes, les présenter comme versions compatibles sans modifier et tester le POM serait trompeur. Pour employer une LTS, il faudrait abaisser et valider la version de compilation dans le projet.
 
 ## Installation et configuration
 
@@ -163,25 +188,31 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 3. Configurer les paramètres de connexion à MySQL pour votre environnement dans [persistence.xml](cynemma/src/main/resources/META-INF/persistence.xml). Le fichier contient actuellement une URL locale sur le port `8889` ; adaptez l’URL, l’utilisateur et le mot de passe à votre installation. Ne publiez pas de secrets.
 
-4. Construire l’application :
+4. Pour les appels TMDB, fournir la variable d’environnement `TMDB_API_KEY` au processus Java qui lance le conteneur web. Le service accepte aussi la propriété JVM `tmdb.api.key` si la variable n’est pas définie. Ne placez pas la clé dans le dépôt.
+
+5. Pour le cache TMDB, configurer dans le conteneur une `DataSource` MySQL liée au nom JNDI `java:comp/env/jdbc/cynema`. `web.xml` déclare la référence, mais le dépôt ne contient pas la configuration du conteneur qui crée et lie cette ressource. Cette `DataSource` doit viser la base contenant `tmdb_cache`.
+
+6. Construire l’application :
 
    ```bash
    mvn clean package
    ```
 
-5. Déployer `target/cinema.war` dans le répertoire de déploiement de votre conteneur web. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
+7. Déployer `target/cinema.war` dans le répertoire de déploiement de votre conteneur web. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
 
    ```bash
    cp target/cinema.war "$CATALINA_HOME/webapps/"
    ```
 
-6. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
+8. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
 
 ### Base de données
 
 La configuration JPA définit l’unité de persistance `cynemma`, Hibernate comme fournisseur et une connexion MySQL en mode `RESOURCE_LOCAL`. Hibernate est configuré avec `hibernate.hbm2ddl.auto=update` : il peut mettre à jour le schéma au démarrage. Le script SQL reste fourni pour initialiser explicitement les tables.
 
-Les tables déclarées par le script sont `utilisateurs`, `cartes_fidelite`, `configuration_salles`, `salles`, `rangees`, `sieges`, `films`, `seances`, `reservations` et `billets`.
+Les tables déclarées par le script sont `utilisateurs`, `cartes_fidelite`, `configuration_salles`, `salles`, `rangees`, `sieges`, `films`, `tmdb_cache`, `seances`, `reservations` et `billets`.
+
+`tmdb_cache` est une table JDBC dédiée et n’est pas une entité JPA. `hibernate.hbm2ddl.auto=update` ne la crée donc pas : elle doit être présente après l’exécution du script SQL. Pour une base déjà créée, appliquez la définition de cette table avant d’utiliser le cache ; le dépôt ne fournit pas de gestionnaire de migrations.
 
 ## Parcours dans l’application
 
@@ -197,7 +228,7 @@ La sélection 3D des sièges avec Three.js n’est pas présente dans les source
 
 ### Employé
 
-Créer et gérer les films, téléverser une affiche, programmer des séances et consulter la programmation.
+Créer et gérer les films, téléverser une affiche, programmer des séances et consulter la programmation. L’employé peut également consulter les nouveautés TMDB et ouvrir une étape de validation avant leur import. La création manuelle reste disponible pour les événements ou films non référencés par TMDB.
 
 ### Administrateur
 
@@ -208,6 +239,7 @@ Aucun compte de démonstration ni identifiant par défaut n’est fourni dans ce
 ## Tests et limites connues
 
 Aucun fichier de test Java n’a été trouvé sous `src/test/java`. Maven est déclaré comme outil de build, mais la présence de JUnit dans le POM ne signifie pas qu’une suite de tests existe.
+Le dépôt ne contient pas non plus de test d’intégration de l’API TMDB ; son bon fonctionnement dépend de la clé TMDB, de l’accès réseau, de la table `tmdb_cache` et de la `DataSource` JNDI configurée dans le conteneur.
 
 Commandes disponibles :
 
@@ -223,9 +255,11 @@ La compilation n’a pas été vérifiée lors de la rédaction de cette documen
 | Symptôme | Vérifications |
 | --- | --- |
 | Échec de connexion à MySQL | Vérifier que MySQL est démarré, que la base `cynema` existe et que l’URL, le port et les identifiants de `persistence.xml` sont adaptés. |
-| Erreur de compilation | Vérifier la version du JDK : le POM demande la version de langage 25. Vérifier aussi l’installation de Maven. |
+| Erreur de compilation | Vérifier la version du JDK : le POM demande la version de langage 21. Vérifier aussi l’installation de Maven. |
 | Erreur HTTP 403 lors d’une action | Vérifier que l’utilisateur possède le rôle attendu et que le formulaire inclut le jeton CSRF lorsqu’il est requis. |
 | Échec d’upload d’affiche | Le serveur n’accepte que les images PNG/JPEG valides et limite la taille et les dimensions ; consulter `CreatFilmServlet`. |
+| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` ou la propriété JVM `tmdb.api.key` est définie, que le serveur peut joindre TMDB et que la clé est valide. |
+| Erreur d’accès au cache TMDB | Vérifier que la table `tmdb_cache` existe et que le conteneur a lié une `DataSource` au nom `java:comp/env/jdbc/cynema`. |
 | Email de réservation non reçu | Vérifier les paramètres et l’accès SMTP utilisés par l’application. Ne pas exposer d’identifiants de messagerie. |
 
 ## Contribution
