@@ -11,6 +11,11 @@
             <h2>Ajouter un film</h2>
             <p>Enregistrer un nouveau film dans le catalogue.</p>
         </a>
+        <a class="card dashboard-card" href="${pageContext.request.contextPath}/employe/tmdb/catalogue">
+            <span class="dashboard-icon" aria-hidden="true">↗</span>
+            <h2>Importer depuis TMDB</h2>
+            <p>Consulter les nouveautés et préparer leur ajout au catalogue.</p>
+        </a>
         <a class="card dashboard-card" href="${pageContext.request.contextPath}/listeFilms">
             <span class="dashboard-icon" aria-hidden="true">▤</span>
             <h2>Gérer les films</h2>
