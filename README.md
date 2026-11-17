@@ -132,6 +132,10 @@ La servlet de bande-annonce ne vérifie pas de rôle de session et ajoute
 ou le JavaScript de l’application n’a été identifié ; la route est exposée,
 mais son utilisation par l’interface n’est pas établie.
 
+Pour une explication détaillée du fonctionnement de l’API, de son parcours de
+requête et de l’intégration TMDB, consultez
+[EXPLICATION_FONCTIONNEMENT_API.md](EXPLICATION_FONCTIONNEMENT_API.md).
+
 ### Modèle métier
 
 Les principales entités sont `Utilisateur` (avec les rôles client, employé et administrateur), `Film`, `Salle`, `Rangee`, `Siege`, `Seance`, `Reservation`, `Billet` et `CarteFidelite`. Le script SQL [init_database.sql](cynemma/init_database.sql) décrit notamment les liens entre films et séances, salles et rangées, puis réservations, billets et sièges.
