@@ -1,4 +1,4 @@
-package fr.turgot.service;
+package fr.turgot.api.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,9 +22,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import fr.turgot.dao.TmdbCacheDAO;
-import fr.turgot.dao.TmdbCacheDAO.CacheEntry;
-import fr.turgot.dto.TmdbMovie;
+import fr.turgot.api.dao.TmdbCacheDAO;
+import fr.turgot.api.dao.TmdbCacheDAO.CacheEntry;
+import fr.turgot.api.dto.TmdbMovie;
 
 public class TmdbService {
 

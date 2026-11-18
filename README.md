@@ -117,7 +117,7 @@ Une réponse positive contient la clé YouTube, `watchUrl` et `embedUrl`. La cl�
 TMDB est lue côté serveur dans `TMDB_API_KEY`, avec la propriété JVM
 `tmdb.api.key` comme solution de repli.
 
-`TmdbService` consulte d’abord la table `tmdb_cache`. En cas d’absence ou
+Le service TMDB de `API/` consulte d’abord la table `tmdb_cache`. En cas d’absence ou
 d’expiration, il recherche le film par titre et, si fourni, par année, puis
 cherche une vidéo de type `Trailer` hébergée sur YouTube, en privilégiant les
 vidéos officielles. Il essaie le français puis l’anglais si nécessaire. Le
@@ -126,8 +126,9 @@ les clés existantes.
 
 Pour le back-office, l’employé peut aussi consulter les nouveautés et préparer
 un import après vérification sur `/employe/tmdb/catalogue`. Ce parcours est
-distinct de `/api/trailer` : il utilise directement `TmdbService` et enregistre
-le film dans le catalogue après validation des champs.
+distinct de `/api/trailer` : le servlet conserve les vues et validations locales
+et demande suggestions/détails à l'API indépendante. Le film est enregistré
+dans le catalogue principal après validation des champs.
 
 La servlet de bande-annonce ne vérifie pas de rôle de session et n’ajoute pas
 d’en-tête CORS permissif ; le navigateur n’autorise donc pas son utilisation
@@ -140,10 +141,11 @@ Pour une explication détaillée du fonctionnement de l’API, de son parcours d
 requête et de l’intégration TMDB, consultez
 [EXPLICATION_FONCTIONNEMENT_API.md](EXPLICATION_FONCTIONNEMENT_API.md).
 La référence des routes HTTP de l’application est présentée dans la
-[documentation API](docs/API/README.md), qui distingue l’endpoint JSON des
+[documentation API](docs/API/README.md), qui distingue les endpoints JSON des
 routes MVC de formulaires et de pages. La spécification OpenAPI compatible
-Swagger Editor se trouve dans [API/Documentation/openapi.yaml](API/Documentation/openapi.yaml) ;
-son périmètre est limité à la route JSON réellement implémentée.
+Swagger Editor se trouve dans
+[API/Documentation/openapi.yaml](API/Documentation/openapi.yaml) ; elle décrit
+les six routes JSON du WAR API indépendant.
 
 ### Modèle métier
 
@@ -155,9 +157,16 @@ Les principales entités sont `Utilisateur` (avec les rôles client, employé et
 Cin-ma/
 ├── README.md
 ├── API/
+│   ├── pom.xml
 │   ├── README.md
-│   └── Documentation/
-│       └── openapi.yaml
+│   ├── Documentation/
+│   │   └── openapi.yaml
+│   └── src/main/java/fr/turgot/api/
+│       ├── controller/          # Servlets JSON
+│       ├── dao/                 # Cache JDBC
+│       ├── dto/                 # DTO TMDB
+│       ├── security/            # Vérification JWT
+│       └── service/             # Appels TMDB et Cache-Aside
 ├── docs/
 │   └── API/                    # Référence détaillée des routes HTTP et MVC
 └── cynemma/
@@ -168,16 +177,20 @@ Cin-ma/
         ├── main/
         │   ├── java/fr/turgot/
         │   │   ├── dao/           # DAO et modèles JPA
-        │   │   ├── api/controller/ # Endpoint JSON /api/trailer
-        │   │   ├── dao/           # DAO et modèles JPA
-        │   │   ├── dto/           # Données transférées depuis TMDB
-        │   │   ├── service/       # Appels TMDB et logique d'intégration
+        │   │   ├── api/controller/ # Relais historique /api/trailer
+        │   │   ├── dto/           # DTO du parcours d'import
+        │   │   ├── service/       # Client HTTP de l'API et logique métier
         │   │   ├── servlet/       # Contrôleurs MVC et formulaires
         │   │   └── utils/         # JPA, CSRF, sessions et utilitaires
         │   ├── resources/         # persistence.xml
         │   └── webapp/            # JSP, CSS, images et descripteur web
-        └── test/java/             # Tests ciblés du contrat HTTP de l'API
+        └── test/java/             # Tests ciblés de l'application principale
 ```
+
+Le WAR API indépendant est dans [`API/`](API/README.md). Il héberge les routes
+JSON et possède le service TMDB ainsi que le DAO du cache. L'application
+principale conserve ses pages et routes MVC ; son `/api/trailer` est un relais
+vers l'API pour préserver l'URL utilisée par les clients existants.
 
 ## Prérequis
 
@@ -209,19 +222,27 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 3. Configurer les paramètres de connexion à MySQL pour votre environnement dans [persistence.xml](cynemma/src/main/resources/META-INF/persistence.xml). Le fichier contient actuellement une URL locale sur le port `8889` ; adaptez l’URL, l’utilisateur et le mot de passe à votre installation. Ne publiez pas de secrets.
 
-4. Pour les appels TMDB, fournir la variable d’environnement `TMDB_API_KEY` au processus Java qui lance le conteneur web. Le service accepte aussi la propriété JVM `tmdb.api.key` si la variable n’est pas définie. Ne placez pas la clé dans le dépôt.
+4. Construire puis déployer le WAR indépendant en suivant le
+   [README de l'API](API/README.md). Seul son processus Java reçoit
+   `TMDB_API_KEY` (ou la propriété JVM `tmdb.api.key`) et
+   `CYNEMMA_JWT_PUBLIC_KEY`. Il nécessite une DataSource JNDI
+   `java:comp/env/jdbc/cynema` vers la même base que l'application principale.
 
-5. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
+5. Pour que l'application principale appelle l'API, fournir
+   `CYNEMMA_API_BASE_URL` (par exemple `http://localhost:8081/cynemma-api`) et
+   `CYNEMMA_JWT_PRIVATE_KEY` au processus Java principal. La clé privée ne doit
+   pas être copiée dans le conteneur API ni placée dans le dépôt. La génération
+   et le format des clés sont décrits dans [API/README.md](API/README.md).
 
-6. Pour le cache TMDB, configurer dans le conteneur une `DataSource` MySQL liée au nom JNDI `java:comp/env/jdbc/cynema`. `web.xml` déclare la référence, mais le dépôt ne contient pas la configuration du conteneur qui crée et lie cette ressource. Cette `DataSource` doit viser la base contenant `tmdb_cache`.
+6. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
 
-7. Construire l’application :
+7. Construire l’application principale :
 
    ```bash
    mvn clean package
    ```
 
-8. Déployer `target/cinema.war` dans le répertoire de déploiement de votre conteneur web. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
+8. Déployer `target/cinema.war` dans le répertoire de déploiement du conteneur principal. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
 
    ```bash
    cp target/cinema.war "$CATALINA_HOME/webapps/"
@@ -261,18 +282,19 @@ Aucun compte de démonstration ni identifiant par défaut n’est fourni dans ce
 
 ## Tests et limites connues
 
-Des tests Java ciblés vérifient le mapping et les réponses de validation de l’endpoint de bande-annonce. Aucun test d’intégration couvrant les appels TMDB, la base de données ou les autres routes MVC n’est présent.
-Le dépôt ne contient pas non plus de test d’intégration de l’API TMDB ; son bon fonctionnement dépend de la clé TMDB, de l’accès réseau, de la table `tmdb_cache` et de la `DataSource` JNDI configurée dans le conteneur.
+Des tests unitaires ciblés vérifient le mapping/validation de la bande-annonce,
+la signature et validation JWT ainsi que l'exigence HTTPS hors boucle locale.
+Aucun test d’intégration couvrant les deux conteneurs, MySQL ou les appels TMDB
+n’est présent.
 
 Commandes disponibles :
 
 ```bash
-mvn test
-mvn clean package
+cd API && mvn clean package
+cd ../cynemma && mvn clean package
 ```
 
-La compilation n’a pas été vérifiée lors de la rédaction de cette documentation : Maven n’était pas disponible dans l’environnement d’exécution.
-
+Les deux commandes construisent et testent indépendamment chaque WAR.
 ## Dépannage
 
 | Symptôme | Vérifications |
@@ -281,8 +303,8 @@ La compilation n’a pas été vérifiée lors de la rédaction de cette documen
 | Erreur de compilation | Vérifier la version du JDK : le POM demande la version de langage 21. Vérifier aussi l’installation de Maven. |
 | Erreur HTTP 403 lors d’une action | Vérifier que l’utilisateur possède le rôle attendu et que le formulaire inclut le jeton CSRF lorsqu’il est requis. |
 | Échec d’upload d’affiche | Le serveur n’accepte que les images PNG/JPEG valides et limite la taille et les dimensions ; consulter `CreatFilmServlet`. |
-| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` ou la propriété JVM `tmdb.api.key` est définie, que le serveur peut joindre TMDB et que la clé est valide. |
-| Erreur d’accès au cache TMDB | Vérifier que la table `tmdb_cache` existe et que le conteneur a lié une `DataSource` au nom `java:comp/env/jdbc/cynema`. |
+| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` ou la propriété JVM `tmdb.api.key` est définie dans le processus de l’API, que le serveur peut joindre TMDB et que la clé est valide. |
+| Erreur d’accès au cache TMDB | Vérifier que la table `tmdb_cache` existe et que le conteneur API a lié une `DataSource` au nom `java:comp/env/jdbc/cynema`. |
 | Email de réservation non reçu | Vérifier les paramètres et l’accès SMTP utilisés par l’application. Ne pas exposer d’identifiants de messagerie. |
 
 ## Contribution

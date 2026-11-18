@@ -2,7 +2,7 @@
 
 Cette documentation décrit les routes présentes dans le code Java actuel. Elle
 distingue l'endpoint JSON consommable comme une API REST des routes MVC Servlet
-qui rendent des JSP ou traitent les formulaires de l'application.
+qui rendent des JSP ou traitent les formulaires de l'application principale.
 
 ## Contenu
 
@@ -15,9 +15,9 @@ qui rendent des JSP ou traitent les formulaires de l'application.
 
 | Catégorie | Nombre | Nature |
 |---|---:|---|
-| Endpoint JSON | 1 | `GET /api/trailer` |
-| Routes MVC Servlet | 21 | Pages, formulaires, navigation et opérations de back-office |
-| Routes Servlet au total | 22 | 33 combinaisons route/méthode déclarées dans les classes examinées |
+| Endpoints JSON du WAR `API/` | 6 | Bande-annonce, santé et intégration TMDB interne |
+| Routes MVC Servlet du principal | 21 | Pages, formulaires, navigation et opérations de back-office |
+| Relais historique du principal | 1 | `GET /api/trailer`, relayé vers le WAR API |
 
 Les routes MVC ne constituent pas une API REST JSON : leurs POST reçoivent des
 paramètres de formulaire et leurs réponses sont généralement des transferts JSP
@@ -25,22 +25,25 @@ ou des redirections.
 
 ## Technologies
 
-Java 21, Jakarta Servlet 6.1, JSP/JSTL, JPA/Hibernate, MySQL/JDBC et `org.json`
-pour l'endpoint de bande-annonce. Les dépendances exactes figurent dans
-[`pom.xml`](../../cynemma/pom.xml).
+Java 21, Jakarta Servlet 6.1, JSP/JSTL, JPA/Hibernate, MySQL/JDBC, HTTP Client,
+JWT RS256 et `org.json`. Les dépendances sont définies dans le
+[`pom.xml` principal](../../cynemma/pom.xml) et le
+[`pom.xml` de l'API](../../API/pom.xml).
 
 ## Utilisation
 
 L'URL complète dépend du contexte de déploiement. Par exemple, avec le contexte
-`/cinema`, l'endpoint JSON est :
+`/cynemma-api`, l'endpoint JSON indépendant est :
 
 ```http
-GET /cinema/api/trailer?film=Interstellar&year=2014
+GET /cynemma-api/api/trailer?film=Interstellar&year=2014
 Accept: application/json
 ```
 
 Le paramètre `year` est facultatif. Voir la
-[référence détaillée](Endpoints.md#api-json).
+[référence détaillée](Endpoints.md#api-json--war-api). Dans l'application
+principale, le même chemin `/api/trailer` est conservé comme relais pour les
+clients existants.
 
 Les exemples de formulaires dans la référence illustrent le format attendu par
 les servlets ; ils ne transforment pas ces routes en endpoints JSON.

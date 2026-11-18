@@ -4,7 +4,10 @@ Toutes les URLs ci-dessous sont relatives au contexte de déploiement. Par
 exemple, avec un contexte `/cinema`, `/api/trailer` devient
 `/cinema/api/trailer`.
 
-## API JSON
+## API JSON — WAR `API/`
+
+Le service API indépendant expose les endpoints JSON ci-dessous. Le contexte
+exemple est `/cynemma-api`; il dépend du déploiement.
 
 ### Obtenir une bande-annonce
 
@@ -74,8 +77,70 @@ Les réponses d'erreur contiennent une propriété `erreur`, par exemple :
   français puis en anglais.
 - Aucun en-tête CORS permissif n'est défini. Cela ne remplace pas un contrôle
   d'accès côté serveur.
-- Référence : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
-  et [`TmdbService`](../../cynemma/src/main/java/fr/turgot/service/TmdbService.java).
+- Référence : [`TrailerServlet`](../../API/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
+  et [`TmdbService`](../../API/src/main/java/fr/turgot/api/service/TmdbService.java).
+
+### Santé — `GET /api/health`
+
+- **Accès :** public.
+- **Paramètres/corps :** aucun.
+- **Traitement :** exécute une vérification `SELECT 1` sur la DataSource JNDI.
+- **Succès — HTTP 200 :** `{"status":"UP","database":"UP"}`.
+- **Échec base — HTTP 503 :** `{"status":"DOWN","database":"DOWN"}`.
+- **Limite :** ne vérifie pas la disponibilité de TMDB.
+- **Source :** [`HealthServlet`](../../API/src/main/java/fr/turgot/api/controller/HealthServlet.java).
+
+### Suggestions TMDB — `GET /api/internal/tmdb/now-playing`
+
+- **Accès :** Bearer JWT RS256 valide, avec émetteur `cynemma-main`,
+  audience `cynemma-api` et rôle `EMPLOYE`. Durée maximale : 300 secondes.
+- **Paramètres/corps :** aucun.
+- **Succès — HTTP 200 :** objet `results` contenant les films. Chaque objet
+  comporte `tmdbId`, `title`, `overview`, `releaseDate`, `posterPath`,
+  `posterUrl`, `runtimeMinutes`, `director` et `genres`.
+- **Erreurs :** 401 jeton absent/invalide/expiré ; 403 rôle manquant ; 503
+  vérificateur de jeton non configuré ou requête interrompue ; 502 erreur TMDB ;
+  504 expiration du délai TMDB ; 500 erreur interne.
+- **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
+
+### Détails d'un film — `GET /api/internal/tmdb/movies/{tmdbId}`
+
+- **Accès :** Bearer JWT employé requis, comme pour les suggestions.
+- **Paramètre de chemin :** `tmdbId`, entier positif.
+- **Succès — HTTP 200 :** objet film avec les champs décrits pour
+  `/now-playing`.
+- **Erreurs :** 400 identifiant hors limite ; 401/403/503 contrôle d'accès ;
+  502 erreur TMDB ; 504 délai dépassé ; 404 route inconnue ; 500 erreur interne.
+- **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
+
+### Affiche d'un film — `GET /api/internal/tmdb/movies/{tmdbId}/poster`
+
+- **Accès :** Bearer JWT employé requis.
+- **Paramètre de chemin :** `tmdbId`, entier positif.
+- **Succès — HTTP 200 :** contenu binaire `image/jpeg` ou `image/png`, déterminé
+  à partir de l'extension du chemin TMDB.
+- **Erreurs :** 401/403/503 contrôle d'accès ; 404 si aucune affiche ou route
+  inconnue ; 502 erreur TMDB ; 504 délai dépassé ; 500 erreur interne.
+- **Remarque :** le nom de fichier ou un en-tête `Content-Disposition` n'est
+  pas défini par cette servlet.
+- **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
+
+### Préparer le cache de bande-annonce — `POST /api/internal/tmdb/movies/{tmdbId}/trailer-cache`
+
+- **Accès :** Bearer JWT employé requis.
+- **Paramètre de chemin :** `tmdbId`, entier positif.
+- **En-tête :** `Content-Type: application/json`.
+- **Body :** objet JSON avec `title` (chaîne utilisée pour la recherche/cache).
+- **Succès — HTTP 200 :** `{"available":true}` si une clé existe, sinon
+  `{"available":false}`.
+- **Erreurs :** 400 identifiant ou titre invalide ; 401/403 contrôle d'accès ;
+  413 corps supérieur à 4096 octets ; 415 type de contenu incorrect ; 500
+  erreur SQL, JSON mal formé ou erreur interne ; 502 erreur TMDB ; 503
+  vérificateur de jeton non configuré ou requête interrompue ; 504 délai dépassé.
+- **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
+
+Le format détaillé des schémas et réponses est aussi disponible dans la
+[spécification OpenAPI](../../API/Documentation/openapi.yaml).
 
 ## Routes MVC
 

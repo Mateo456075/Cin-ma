@@ -18,7 +18,7 @@ import fr.turgot.dao.FilmDAO;
 import fr.turgot.dao.model.Film;
 import fr.turgot.dao.model.Utilisateur;
 import fr.turgot.dto.TmdbMovie;
-import fr.turgot.service.TmdbService;
+import fr.turgot.service.TmdbApiClient;
 import fr.turgot.utils.CsrfProtection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -35,11 +35,13 @@ public class TmdbCatalogImportServlet extends HttpServlet {
     private static final long MAX_IMAGE_PIXELS = 20_000_000L;
 
     private final FilmDAO filmDAO = new FilmDAO();
+    private final TmdbApiClient tmdbApiClient = new TmdbApiClient();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        if (!isEmployee(request)) {
+        Utilisateur employee = getEmployee(request);
+        if (employee == null) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -48,14 +50,14 @@ public class TmdbCatalogImportServlet extends HttpServlet {
         String tmdbIdParameter = request.getParameter("tmdbId");
         try {
             if (tmdbIdParameter == null || tmdbIdParameter.isBlank()) {
-                List<TmdbMovie> movies = TmdbService.getNowPlayingMovies();
+                List<TmdbMovie> movies = tmdbApiClient.getNowPlayingMovies(employee.getLogin());
                 request.setAttribute("movies", movies);
                 forward(request, response, SUGGESTIONS_JSP);
                 return;
             }
 
             int tmdbId = parseTmdbId(tmdbIdParameter);
-            TmdbMovie movie = TmdbService.getMovieDetails(tmdbId);
+            TmdbMovie movie = tmdbApiClient.getMovieDetails(tmdbId, employee.getLogin());
             setReviewAttributes(request, movie);
             forward(request, response, REVIEW_JSP);
         } catch (IllegalArgumentException e) {
@@ -76,7 +78,8 @@ public class TmdbCatalogImportServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        if (!isEmployee(request)) {
+        Utilisateur employee = getEmployee(request);
+        if (employee == null) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -96,7 +99,7 @@ public class TmdbCatalogImportServlet extends HttpServlet {
 
         String localPosterPath = null;
         try {
-            TmdbMovie tmdbMovie = TmdbService.getMovieDetails(tmdbId);
+            TmdbMovie tmdbMovie = tmdbApiClient.getMovieDetails(tmdbId, employee.getLogin());
             String title = parameter(request, "title");
             String director = parameter(request, "director");
             String genre = parameter(request, "genre");
@@ -127,8 +130,8 @@ public class TmdbCatalogImportServlet extends HttpServlet {
                 return;
             }
 
-            TmdbService.getTrailerKeyForMovie(tmdbId, title);
-            byte[] posterBytes = TmdbService.downloadPoster(tmdbMovie.getPosterPath());
+            tmdbApiClient.cacheTrailerForMovie(tmdbId, title, employee.getLogin());
+            byte[] posterBytes = tmdbApiClient.downloadPoster(tmdbId, employee.getLogin());
             try {
                 localPosterPath = savePoster(posterBytes, request);
             } catch (IOException e) {
@@ -159,10 +162,6 @@ public class TmdbCatalogImportServlet extends HttpServlet {
             getServletContext().log("Erreur de communication avec TMDB pendant l'import.", e);
             response.sendError(HttpServletResponse.SC_BAD_GATEWAY,
                     "TMDB ou son serveur d'affiches est temporairement indisponible.");
-        } catch (java.sql.SQLException e) {
-            cleanupPoster(localPosterPath, request);
-            getServletContext().log("Impossible d'enregistrer le cache de bande-annonce TMDB.", e);
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } catch (RuntimeException e) {
             cleanupPoster(localPosterPath, request);
             getServletContext().log("Erreur lors de l'import du film TMDB.", e);
@@ -170,9 +169,11 @@ public class TmdbCatalogImportServlet extends HttpServlet {
         }
     }
 
-    private boolean isEmployee(HttpServletRequest request) {
+    private Utilisateur getEmployee(HttpServletRequest request) {
         Utilisateur user = (Utilisateur) request.getSession().getAttribute("usere");
-        return user != null && "EMPLOYE".equalsIgnoreCase(user.getTypeUtilisateur());
+        return user != null && "EMPLOYE".equalsIgnoreCase(user.getTypeUtilisateur())
+                ? user
+                : null;
     }
 
     private int parseTmdbId(String value) {

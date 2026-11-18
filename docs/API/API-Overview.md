@@ -1,107 +1,104 @@
 # Vue d'ensemble technique
 
-## Ce que le projet expose
+## Architecture déployée
 
-Cynemma est une application web Java déployée en WAR, structurée autour de
-servlets, de JSP, de DAO et d'entités JPA/Hibernate. Dans le code examiné,
-`GET /api/trailer` est le seul endpoint qui construit une réponse JSON. Les
-autres routes Servlet servent des pages HTML ou traitent les formulaires de
-l'application.
+Cynemma est composé de deux WAR qui restent intégrés au même produit :
 
-Cette distinction est importante : le projet n'expose pas actuellement une API
-REST JSON complète pour les films, séances, utilisateurs ou réservations.
+- `cynemma/` est l'application principale Jakarta Servlet/JSP, avec les pages,
+  les sessions, les formulaires MVC, les DAO et la persistance métier JPA.
+- `API/` est un projet Maven autonome qui produit le WAR des routes JSON. Il
+  possède les appels TMDB et le DAO JDBC de `tmdb_cache`.
 
-## Parcours de la route JSON
+Les deux conteneurs utilisent la même base MySQL, mais chacun doit configurer sa
+propre DataSource JNDI `java:comp/env/jdbc/cynema`. Le WAR API ne partage pas
+l'EntityManager de l'application principale. Les opérations HTTP entre WAR ne
+font pas partie d'une transaction SQL/JPA distribuée.
 
 ```text
-Client HTTP
-  -> GET /api/trailer?film=...&year=...
-  -> TrailerServlet
-  -> TmdbService
-       -> TmdbCacheDAO / tmdb_cache (JDBC, DataSource JNDI)
-       -> TMDB si le cache est absent ou expiré
-  <- JSON (clé YouTube, URL de lecture et URL d'intégration)
+Client web
+  -> Cynemma principal (JSP, MVC, session employé, CSRF)
+       -> /api/trailer (relais HTTP conservant le chemin historique)
+            -> API indépendante
+                 -> TmdbService
+                      -> TmdbCacheDAO / tmdb_cache (JDBC)
+                      -> TMDB (cache miss/expiration)
+
+Import employé
+  -> TmdbCatalogImportServlet (session, rôle EMPLOYE, CSRF, validation)
+       -> TmdbApiClient (HTTP serveur-à-serveur + JWT RS256)
+            -> API /api/internal/tmdb/*
+       -> FilmDAO / JPA (enregistrement du film dans l'application principale)
 ```
 
-La route vérifie le titre et, si fourni, l'année. Le service vérifie le cache
-avant TMDB. Les clés de bande-annonce sont mises en cache 90 jours et les
-résultats négatifs 7 jours. Le cache est basé sur le titre, auquel l'année est
-ajoutée lorsqu'elle est fournie.
+Le parcours d'import conserve les pages de revue et de suggestions. Il ne
+contourne pas le rôle, la validation ni le jeton CSRF de l'application
+principale. Le JWT de cinq minutes permet à l'API d'autoriser ces appels internes
+sans partager la session HTTP du navigateur.
 
-La sélection des vidéos exige `type=Trailer` et `site=YouTube`, privilégie
-`official=true` et essaie les résultats français avant les résultats anglais.
-Un verrou borné sérialise les cache miss portant le même titre au sein d'une
-même JVM.
+## Endpoints JSON de l'API indépendante
 
-Références : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java),
-[`TmdbService`](../../cynemma/src/main/java/fr/turgot/service/TmdbService.java),
-[`TmdbCacheDAO`](../../cynemma/src/main/java/fr/turgot/dao/TmdbCacheDAO.java).
+| Méthode et route | Fonction |
+|---|---|
+| `GET /api/health` | Contrôle la connexion MySQL de l'API |
+| `GET /api/trailer?film=...&year=...` | Recherche la bande-annonce avec cache |
+| `GET /api/internal/tmdb/now-playing` | Suggestions employé depuis TMDB |
+| `GET /api/internal/tmdb/movies/{tmdbId}` | Détails préremplis |
+| `GET /api/internal/tmdb/movies/{tmdbId}/poster` | Téléchargement de l'affiche |
+| `POST /api/internal/tmdb/movies/{tmdbId}/trailer-cache` | Prépare le cache de bande-annonce |
 
-## Formats et authentification
+Le chemin complet dépend du contexte de déploiement. La spécification
+[OpenAPI](../../API/Documentation/openapi.yaml) décrit ces endpoints. Les
+servlets qui rendent des pages ou traitent des formulaires restent des routes
+MVC, documentées séparément dans la [référence HTTP](Endpoints.md).
 
-### Endpoint JSON
+## Contrats et accès
 
-- Requête : paramètres de l'URL (`film`, facultativement `year`), aucun corps
-  JSON.
-- Réponse : `application/json`, encodage UTF-8.
-- Authentification et rôle : aucun contrôle de session ou de rôle dans la
-  servlet.
-- CORS : aucun en-tête CORS permissif n'est ajouté. Le navigateur applique ses
-  règles d'origine ; cela ne constitue pas un contrôle d'accès pour les clients
-  non navigateurs.
+### Bande-annonce
 
-### Routes MVC
+- Paramètres de requête : `film` requis et `year` facultatif.
+- Réponse de succès : JSON avec `key`, `watchUrl` et `embedUrl`.
+- Accès : pas de contrôle de session sur l'endpoint de l'API, comme dans le
+  comportement antérieur. Le relais du principal ne doit pas être considéré
+  comme une autorisation ; la route est publique.
+- Le cache expire après 90 jours pour une clé trouvée et 7 jours pour un
+  résultat négatif.
 
-- Les GET servent généralement à afficher une JSP.
-- Les POST reçoivent des champs de formulaire, le plus souvent
-  `application/x-www-form-urlencoded`. La création manuelle d'un film utilise
-  `multipart/form-data` pour l'affiche.
-- Plusieurs opérations protégées vérifient le rôle de l'utilisateur en session
-  et un jeton CSRF transmis comme champ `csrfToken`.
-- Les réponses sont des JSP transférées en interne ou des redirections ; il n'y
-  a pas de schéma JSON uniforme pour ces routes.
+### Routes internes d'import
 
-Les chemins et les contrôles par route sont documentés dans la
-[référence des endpoints](Endpoints.md).
+- Accès : `Authorization: Bearer <JWT>` signé en RS256 par le principal.
+- Claims attendus : `iss=cynemma-main`, `aud=cynemma-api`,
+  `role=EMPLOYE`, dates cohérentes et durée maximale de cinq minutes.
+- Les JWT sont émis uniquement côté serveur après vérification de la session et
+  du rôle employé par le servlet d'import.
+- Les erreurs sont au format JSON avec le champ `erreur`; les réponses exactes
+  et codes HTTP sont définis par les servlets et décrits dans OpenAPI.
 
-## Données et dépendances
+Cette protection s'applique aux routes internes concernées ; elle ne protège
+pas de nouvelles routes par défaut. Les appels doivent se faire sur un canal
+réseau de confiance, HTTPS hors développement local, et l'accès réseau à l'API
+doit être limité.
 
-Les entités de cinéma comprennent notamment `Film`, `Seance`, `Salle`,
-`Rangee`, `Siege`, `Billet`, `Reservation`, `Utilisateur` et `CarteFidelite`.
-Le schéma est dans [`init_database.sql`](../../cynemma/init_database.sql).
+## Technologies et configuration
 
-Technologies déclarées dans le
-[`pom.xml`](../../cynemma/pom.xml) :
+- Java 21, Maven, Jakarta Servlet 6.1.
+- JSON via `org.json`.
+- MySQL/JDBC via une DataSource JNDI dans le WAR API ; JPA/Hibernate demeure
+  dans l'application principale.
+- TheMovieDB appelé par le serveur API avec `TMDB_API_KEY`.
+- `CYNEMMA_API_BASE_URL` et `CYNEMMA_JWT_PRIVATE_KEY` configurent le client JWT
+  HTTP côté principal ; `CYNEMMA_JWT_PUBLIC_KEY` configure la validation côté
+  API.
 
-- Java avec `maven.compiler.release=21` ;
-- Jakarta Servlet 6.1, JSP/JSTL ;
-- Jakarta Persistence 3.1 et Hibernate 6.5 ;
-- MySQL Connector/J 8.3 ;
-- `org.json` 20240303 ;
-- BCrypt et Jakarta Mail.
+Les valeurs opérationnelles de chaque conteneur et les étapes de construction
+sont décrites dans le [README du projet API](../../API/README.md).
 
-`TrailerServlet` appelle le service TMDB. Le parcours d'import employé utilise
-également TMDB, mais il s'agit d'une page/formulaire MVC, pas d'un endpoint REST
-JSON.
+## Limites constatées
 
-## Contexte de déploiement
-
-Le contexte d'application n'est pas fixé par les annotations Servlet ; les
-exemples sans préfixe de contexte sont donc relatifs. `web.xml` déclare un
-descripteur 6.0 alors que le POM dépend de Servlet 6.1. La configuration
-effective du conteneur et de la `DataSource` JNDI n'est pas présente dans le
-dépôt examiné.
-
-## Périmètre et limites
-
-- Les routes de formulaire sont documentées comme interfaces HTTP MVC, pas
-  comme API REST.
-- Les statuts automatiques du conteneur lors des transferts JSP, redirections
-  ou exceptions non capturées dépendent du conteneur ; la documentation ne les
-  présente pas comme des réponses JSON garanties.
-- Des tests Java ciblés vérifient le mapping de l'endpoint JSON et ses erreurs
-  de validation d'entrée ; aucun test d'intégration TMDB ou base de données
-  n'est présent.
-- La spécification [`openapi.yaml`](../../API/Documentation/openapi.yaml)
-  décrit uniquement l'endpoint JSON. Les routes MVC restent référencées dans
-  les documents Markdown de ce dossier.
+- Il s'agit d'une API ciblée TMDB, pas d'une API REST CRUD pour les réservations,
+  séances ou utilisateurs.
+- La route publique de bande-annonce conserve le comportement sans session.
+- Les deux WAR doivent être déployés et configurés séparément ; l'indisponibilité
+  de l'API rend indisponibles les appels TMDB et l'import, mais les pages
+  restantes de l'application principale sont distinctes.
+- Aucun paiement, panier, hold temporaire de sièges ou générateur de salle 3D
+  n'est ajouté par cette séparation.

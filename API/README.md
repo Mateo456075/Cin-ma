@@ -1,73 +1,146 @@
-# Organisation de l'API Cynemma
+# Projet API Cynemma
 
-## Périmètre
+## Architecture
 
-L'application reste un seul WAR Maven. Le seul endpoint qui expose actuellement
-une réponse JSON est `GET /api/trailer`. Les autres routes Servlet de
-l'application rendent des pages JSP, traitent des formulaires ou redirigent ;
-elles sont documentées comme routes MVC dans [`docs/API/`](../docs/API/README.md)
-et ne sont pas décrites comme endpoints REST dans OpenAPI.
-
-## Organisation
+`API/` est un projet Maven autonome qui produit `cynemma-api.war`. Il se déploie
+sur son propre conteneur Servlet ; ce n'est pas une deuxième base de données ni
+un microservice CRUD indépendant du domaine. L'application principale conserve
+les JSP, les sessions utilisateur et la persistance des films importés.
 
 ```text
 API/
+├── pom.xml
 ├── README.md
-└── Documentation/
-    └── openapi.yaml
-
-cynemma/src/main/java/fr/turgot/
-├── api/
-│   └── controller/
-│       └── TrailerServlet.java
-├── service/
-│   └── TmdbService.java
-├── dao/
-│   └── TmdbCacheDAO.java
-└── dto/
-    └── TmdbMovie.java
+├── Documentation/openapi.yaml
+└── src/
+    ├── main/java/fr/turgot/api/
+    │   ├── controller/       # Servlets HTTP/JSON et validation de protocole
+    │   ├── dao/              # JDBC vers le cache partagé
+    │   ├── dto/              # Modèles TMDB exposés à l'application principale
+    │   ├── security/         # Vérification des JWT signés par Cynemma
+    │   └── service/          # Appels TMDB, Cache-Aside et sélection de bande-annonce
+    ├── main/webapp/WEB-INF/web.xml
+    └── test/java/            # Tests du contrat Servlet
 ```
 
-- `api.controller` porte le contrat HTTP JSON : mapping Servlet, validation des
-  paramètres HTTP, statuts et sérialisation des réponses.
-- `service` conserve les appels TMDB et l'orchestration Cache-Aside. Il est
-  partagé par l'endpoint et le parcours d'import employé ; il n'est donc pas
-  déplacé dans une couche réservée à l'API.
-- `dao` conserve l'accès JDBC à `tmdb_cache`.
-- `dto` contient le modèle de film TMDB utilisé par l'import employé. La
-  réponse de l'endpoint de bande-annonce reste un petit objet construit par le
-  contrôleur ; aucune couche DTO supplémentaire n'est nécessaire pour un seul
-  contrat plat.
-- `API/Documentation` contient le contrat OpenAPI versionné avec le dépôt.
+Le service TMDB et le DAO de cache ont été déplacés hors de `cynemma/` : l'API
+est leur propriétaire unique. Le flux employé conserve ses pages et validations,
+mais appelle l'API par HTTP depuis le serveur principal. Le contrôleur principal
+`GET /api/trailer` est conservé comme relais HTTP vers le nouveau serveur pour
+garder l'URL historique de l'application.
 
-Les contrôleurs MVC, les modèles métier, les autres DAO et les vues restent
-dans leur organisation existante. Il n'y a pas de package `Routes` séparé :
-`@WebServlet` déclare le mapping HTTP dans Jakarta Servlet. Aucun middleware
-global ou validateur dédié n'est présent dans l'application ; en créer pour un
-seul endpoint ajouterait une couche sans responsabilité réutilisée.
+## Endpoints implémentés
 
-## Contrat et sécurité
+| Méthode et route dans le WAR API | Accès | Rôle |
+|---|---|---|
+| `GET /api/health` | Public | Vérifie la connexion MySQL |
+| `GET /api/trailer?film=...&year=...` | Public | Recherche cache-aware de bande-annonce |
+| `GET /api/internal/tmdb/now-playing` | JWT employé | Suggestions pour l'import |
+| `GET /api/internal/tmdb/movies/{tmdbId}` | JWT employé | Détails préremplis |
+| `GET /api/internal/tmdb/movies/{tmdbId}/poster` | JWT employé | Téléchargement de l'affiche |
+| `POST /api/internal/tmdb/movies/{tmdbId}/trailer-cache` | JWT employé | Prépare le cache de bande-annonce |
 
-La route conserve son chemin et sa méthode existants. Elle accepte `film` et
-`year` en paramètres de requête et renvoie du JSON. Elle n'impose pas de session
-ou de rôle ; la spécification le reflète et ne déclare pas de sécurité
-artificielle. Les requêtes provenant d'autres origines ne sont pas autorisées
-par un en-tête CORS permissif, mais l'absence de CORS ne constitue pas une
-authentification.
+L'OpenAPI [Documentation/openapi.yaml](Documentation/openapi.yaml) décrit ces
+routes uniquement. Les routes HTML/MVC existantes sont inventoriées dans la
+[documentation HTTP générale](../docs/API/README.md). Les fonctionnalités
+réservation avancée, hold temporaire, panier, tarifs, produits, paiement et
+historique ne sont pas déclarées : leur modèle métier n'existe pas encore.
 
-La route est publique et aucune limitation de débit par client n'est visible
-dans le code. Des appels répétés sur des titres non présents en cache peuvent
-consommer le quota TMDB ; une limitation de débit nécessite un choix de seuil
-et de stratégie de déploiement, et n'est pas ajoutée dans cette restructuration.
+## Authentification entre les projets
 
-La définition détaillée des paramètres, schémas, exemples et réponses se trouve
-dans [`Documentation/openapi.yaml`](Documentation/openapi.yaml). La vue
-d'ensemble des routes HTML et du seul endpoint JSON reste dans la
-[documentation HTTP existante](../docs/API/README.md).
+La connexion de l'employé reste celle de l'application principale. Après son
+contrôle de session et de rôle, le serveur principal émet un JWT RS256 de cinq
+minutes, signé avec la clé privée. L'API vérifie la signature avec la clé
+publique et exige l'émetteur `cynemma-main`, l'audience `cynemma-api` et le rôle
+`EMPLOYE`. Le JWT est transmis uniquement dans l'en-tête
+`Authorization: Bearer ...` entre serveurs ; il n'est pas exposé au navigateur.
 
-## Configuration et exécution
+Générer une paire de clés hors du dépôt, dans un emplacement protégé :
 
-L'API n'est pas une application déployable indépendante. Elle utilise le
-service TMDB, la `DataSource` JNDI `java:comp/env/jdbc/cynema` et la table
-`tmdb_cache` de l'application principale. Les variables de configuration et
-les étapes de déploiement figurent dans le [README racine](../README.md).
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out cynemma-private.pem
+openssl pkey -in cynemma-private.pem -pubout -out cynemma-public.pem
+openssl pkey -in cynemma-private.pem -outform DER | base64 | tr -d '\n'
+openssl pkey -pubin -in cynemma-public.pem -outform DER | base64 | tr -d '\n'
+```
+
+Les deux dernières commandes affichent les valeurs encodées à transmettre au
+gestionnaire de secrets de chaque processus. Fournir le DER PKCS#8 de la clé
+privée encodé en Base64 au processus Java principal dans
+`CYNEMMA_JWT_PRIVATE_KEY`. Fournir le DER X.509 de la clé publique encodé en
+Base64 au processus Java API dans
+`CYNEMMA_JWT_PUBLIC_KEY`. Garder la clé privée uniquement côté serveur principal ;
+ne jamais versionner les clés ou les jetons.
+
+Cette fédération concerne les appels serveur-à-serveur de l'import TMDB. Les
+endpoints de gestion des réservations, salles et utilisateurs n'ont pas encore
+été développés ; aucune autorisation future n'est implicitement couverte par
+ce seul rôle.
+
+## Configuration et base de données
+
+L'API utilise la même base MySQL que Cynemma, mais chaque conteneur doit disposer
+de sa propre `DataSource` JNDI `java:comp/env/jdbc/cynema`. Configurer la
+DataSource dans le conteneur de l'API avec la même base et des identifiants
+injectés par l'environnement ou un gestionnaire de secrets. Le POM ne crée pas
+la base et l'API n'utilise pas l'EntityManager de l'application principale.
+
+Variables nécessaires :
+
+| Variable | Processus | Usage |
+|---|---|---|
+| `TMDB_API_KEY` | API | Accès serveur à TMDB |
+| `CYNEMMA_JWT_PUBLIC_KEY` | API | Validation des jetons employés |
+| `CYNEMMA_JWT_PRIVATE_KEY` | Application principale | Signature des jetons employés |
+| `CYNEMMA_API_BASE_URL` | Application principale | Origine + contexte du WAR API, sans `/api` final |
+
+Pour le déploiement local proposé ci-dessous, `CYNEMMA_API_BASE_URL` vaut
+`http://localhost:8081/cynemma-api`. Si les serveurs ne sont pas sur le même
+hôte, utiliser HTTPS et limiter l'accès réseau aux appels nécessaires.
+
+Le schéma existant `tmdb_cache` reste partagé. Les transactions sont locales à
+chaque application ; aucune transaction JPA distribuée n'est créée. Les
+opérations de cache sont indépendantes de la persistance du film importé par
+l'application principale.
+
+## Construction et démarrage
+
+Prérequis : JDK 21, Maven, un conteneur compatible Jakarta Servlet 6.1 et une
+DataSource configurée.
+
+Construire séparément l'API :
+
+```bash
+cd API
+mvn clean package
+```
+
+Déployer `target/cynemma-api.war` dans un second Tomcat écoutant, par exemple,
+sur le port 8081. Avant le démarrage, configurer `TMDB_API_KEY`,
+`CYNEMMA_JWT_PUBLIC_KEY` et la DataSource JNDI de ce conteneur. Vérifier
+`http://localhost:8081/cynemma-api/api/health`.
+
+Dans le conteneur de l'application principale, configurer
+`CYNEMMA_API_BASE_URL` et `CYNEMMA_JWT_PRIVATE_KEY`, puis déployer le WAR
+principal. Démarrer l'API avant d'utiliser l'import TMDB ; si l'API est
+indisponible, les pages et validations locales restent disponibles, mais les
+opérations de suggestion/import échouent explicitement et ne prétendent pas
+avoir réussi.
+
+La route `GET /api/trailer` est facultative pour l'affichage du catalogue ; sa
+défaillance ne bloque pas la consultation des films. Elle reste accessible par
+le chemin historique de l'application principale, qui relaie la requête.
+
+## Tests
+
+Depuis `API/`, exécuter `mvn test`. Depuis `cynemma/`, exécuter
+`mvn test`. Les tests présents couvrent le mapping et les validations initiales
+de `GET /api/trailer`; aucun test d'intégration n'exerce encore les deux
+conteneurs, MySQL ou TMDB.
+
+## Documentation
+
+Ouvrir [Documentation/openapi.yaml](Documentation/openapi.yaml) dans 42Crunch
+OpenAPI Editor. Le serveur inscrit dans le fichier est une URL de développement
+indicative ; l'URL effective dépend du conteneur. Le schéma OpenAPI ne remplace
+pas l'authentification serveur à serveur et ne contient aucun secret.

@@ -1,8 +1,8 @@
 # Comprendre l’API de bandes-annonces de Cynemma
 
 Ce document explique le code actuellement présent dans le dépôt. Il décrit la
-route `GET /api/trailer`, le service TMDB, le cache MySQL et les réponses
-fabriquées par l’application.
+route `GET /api/trailer` du WAR API indépendant, le service TMDB, le cache MySQL
+et l'intégration de l'import employé avec l'application principale.
 
 Les exemples de réponses ci-dessous correspondent aux formes produites par le
 code. L’application n’a pas été lancée contre TMDB pendant la rédaction : les
@@ -21,15 +21,16 @@ La route déclarée dans le code accepte un titre et, facultativement, une anné
 GET /api/trailer?film=Interstellar&year=2014
 ```
 
-Le chemin complet dépend du contexte de déploiement. Si l’application est
-déployée sous le contexte `cinema`, l’URL peut par exemple être :
+Le chemin complet dépend du contexte de déploiement. Dans le WAR API, l’URL peut
+par exemple être :
 
 ```text
-http://localhost:8080/cinema/api/trailer?film=Interstellar
+http://localhost:8081/cynemma-api/api/trailer?film=Interstellar
 ```
 
-Le nom exact dans l’annotation est **`/api/trailer`**, au singulier. Il n’y a
-pas de route `/api/trailers` dans les fichiers analysés.
+L’application principale conserve aussi `/api/trailer` comme relais HTTP afin
+de maintenir son URL historique. Le nom exact de la route reste
+**`/api/trailer`**, au singulier ; il n’y a pas de route `/api/trailers`.
 
 ## 2. Vue d’ensemble du parcours
 
@@ -38,7 +39,7 @@ Client HTTP
     |
     | GET /api/trailer?film=Interstellar
     v
-TrailerServlet.doGet()
+API WAR: TrailerServlet.doGet()
     |
     | valide le paramètre "film"
     v
@@ -58,7 +59,7 @@ TmdbCacheDAO.findByFilmTitle()
                     TmdbCacheDAO.save()
                            |
                            v
-                    TrailerServlet construit le JSON
+                    API TrailerServlet construit le JSON
                            |
                            v
                     Client HTTP
@@ -97,13 +98,13 @@ TmdbCacheDAO.findByFilmTitle()
     JSON et le renvoie au client.
 
 Les fichiers et méthodes principaux sont
-[TrailerServlet.java](cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java),
-[TmdbService.java](cynemma/src/main/java/fr/turgot/service/TmdbService.java) et
-[TmdbCacheDAO.java](cynemma/src/main/java/fr/turgot/dao/TmdbCacheDAO.java).
+[TrailerServlet.java](API/src/main/java/fr/turgot/api/controller/TrailerServlet.java),
+[TmdbService.java](API/src/main/java/fr/turgot/api/service/TmdbService.java) et
+[TmdbCacheDAO.java](API/src/main/java/fr/turgot/api/dao/TmdbCacheDAO.java).
 
 ## 3. La servlet : recevoir la requête et répondre
 
-Fichier : [TrailerServlet.java](cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
+Fichier : [TrailerServlet.java](API/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
 
 ### Annotation et classe
 
@@ -169,7 +170,7 @@ réponse HTTP avec `response.getWriter()`.
 
 ## 4. Le service : logique du cache et appels TMDB
 
-Fichier : [TmdbService.java](cynemma/src/main/java/fr/turgot/service/TmdbService.java)
+Fichier : [TmdbService.java](API/src/main/java/fr/turgot/api/service/TmdbService.java)
 
 Cette classe orchestre le parcours : cache d’abord, TMDB ensuite. Elle n’est
 pas une servlet et n’écrit pas directement dans la réponse HTTP.
@@ -318,7 +319,7 @@ return response.body();
 
 ## 5. Le DAO et le cache JDBC
 
-Fichier : [TmdbCacheDAO.java](cynemma/src/main/java/fr/turgot/dao/TmdbCacheDAO.java)
+Fichier : [TmdbCacheDAO.java](API/src/main/java/fr/turgot/api/dao/TmdbCacheDAO.java)
 
 Un DAO (*Data Access Object*) regroupe les opérations d’accès aux données. Ici,
 il utilise JDBC pour lire et écrire `tmdb_cache`. Ce n’est pas une entité JPA
@@ -557,10 +558,11 @@ expirées restent dans la table jusqu’à leur remplacement.
 ## 11. Ce que l’analyse du dépôt confirme — et ne confirme pas
 
 - La servlet `/api/trailer` est déclarée et le service l’appelle.
-- Le service contient les appels HTTP à TMDB et le DAO contient les opérations
-  JDBC du cache.
-- Le flux d’import du catalogue est distinct de `/api/trailer` : il est exposé
-  par `/employe/tmdb/catalogue` et passe directement par `TmdbService`.
+- Le WAR `API/` contient les appels HTTP à TMDB et les opérations JDBC du cache.
+-   Le flux d’import du catalogue est distinct de `/api/trailer` : il est exposé
+  par `/employe/tmdb/catalogue`. Le servlet principal conserve le contrôle de
+  session, du rôle employé et du CSRF, puis utilise `TmdbApiClient` pour appeler
+  les routes TMDB internes du WAR API avec un JWT RS256 de courte durée.
 - Le dépôt contient une déclaration `resource-ref` JNDI, mais aucun fichier de
   configuration du serveur web liant effectivement la `DataSource` n’a été
   identifié dans le périmètre examiné.
@@ -732,7 +734,7 @@ mais le serveur doit encore configurer la ressource réelle.
 
 ## 14. Présentation orale synthétique
 
-> « Ma route REST est une servlet Jakarta déclarée sur `/api/trailer`. Elle
+> « Le WAR API expose une route Jakarta Servlet déclarée sur `/api/trailer`. Elle
 > reçoit un titre de film et délègue le traitement à `TmdbService`. Le service
 > applique un cache-Aside : il interroge d’abord `tmdb_cache` avec un DAO JDBC.
 > Si le résultat manque, il appelle TMDB pour rechercher le film, récupère son
@@ -745,7 +747,8 @@ mais le serveur doit encore configurer la ressource réelle.
 
 Le projet contient aussi un parcours de back-office séparé pour proposer à un
 employé des films TMDB à ajouter au catalogue. Ce parcours n’appelle pas la
-route `/api/trailer` : il utilise directement `TmdbService`.
+route `/api/trailer` : le servlet MVC conserve les contrôles d'accès et appelle
+les endpoints TMDB internes du WAR API avec un JWT signé côté serveur.
 
 ### Routes et contrôles d’accès
 
