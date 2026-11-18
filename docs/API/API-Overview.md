@@ -33,7 +33,7 @@ La sélection des vidéos exige `type=Trailer` et `site=YouTube`, privilégie
 Un verrou borné sérialise les cache miss portant le même titre au sein d'une
 même JVM.
 
-Références : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/servlet/api/TrailerServlet.java),
+Références : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java),
 [`TmdbService`](../../cynemma/src/main/java/fr/turgot/service/TmdbService.java),
 [`TmdbCacheDAO`](../../cynemma/src/main/java/fr/turgot/dao/TmdbCacheDAO.java).
 
@@ -99,7 +99,9 @@ dépôt examiné.
 - Les statuts automatiques du conteneur lors des transferts JSP, redirections
   ou exceptions non capturées dépendent du conteneur ; la documentation ne les
   présente pas comme des réponses JSON garanties.
-- Aucun test Java n'est présent dans `src/test`.
-- Il n'y a pas de spécification OpenAPI ou Swagger trouvée dans le dépôt ; les
-  fichiers Markdown de ce dossier constituent la documentation créée à partir
-  du code.
+- Des tests Java ciblés vérifient le mapping de l'endpoint JSON et ses erreurs
+  de validation d'entrée ; aucun test d'intégration TMDB ou base de données
+  n'est présent.
+- La spécification [`openapi.yaml`](../../API/Documentation/openapi.yaml)
+  décrit uniquement l'endpoint JSON. Les routes MVC restent référencées dans
+  les documents Markdown de ce dossier.

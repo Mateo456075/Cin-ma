@@ -6,6 +6,7 @@ qui rendent des JSP ou traitent les formulaires de l'application.
 
 ## Contenu
 
+- [Spécification OpenAPI 3.0](../../API/Documentation/openapi.yaml)
 - [Vue d'ensemble technique](API-Overview.md)
 - [Référence des routes et endpoints](Endpoints.md)
 - [Erreurs, limites et points à confirmer](Errors.md)

@@ -97,13 +97,13 @@ TmdbCacheDAO.findByFilmTitle()
     JSON et le renvoie au client.
 
 Les fichiers et méthodes principaux sont
-[TrailerServlet.java](cynemma/src/main/java/fr/turgot/servlet/api/TrailerServlet.java),
+[TrailerServlet.java](cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java),
 [TmdbService.java](cynemma/src/main/java/fr/turgot/service/TmdbService.java) et
 [TmdbCacheDAO.java](cynemma/src/main/java/fr/turgot/dao/TmdbCacheDAO.java).
 
 ## 3. La servlet : recevoir la requête et répondre
 
-Fichier : [TrailerServlet.java](cynemma/src/main/java/fr/turgot/servlet/api/TrailerServlet.java)
+Fichier : [TrailerServlet.java](cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
 
 ### Annotation et classe
 

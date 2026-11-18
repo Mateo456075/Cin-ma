@@ -74,7 +74,7 @@ Les réponses d'erreur contiennent une propriété `erreur`, par exemple :
   français puis en anglais.
 - Aucun en-tête CORS permissif n'est défini. Cela ne remplace pas un contrôle
   d'accès côté serveur.
-- Référence : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/servlet/api/TrailerServlet.java)
+- Référence : [`TrailerServlet`](../../cynemma/src/main/java/fr/turgot/api/controller/TrailerServlet.java)
   et [`TmdbService`](../../cynemma/src/main/java/fr/turgot/service/TmdbService.java).
 
 ## Routes MVC

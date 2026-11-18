@@ -141,7 +141,9 @@ requête et de l’intégration TMDB, consultez
 [EXPLICATION_FONCTIONNEMENT_API.md](EXPLICATION_FONCTIONNEMENT_API.md).
 La référence des routes HTTP de l’application est présentée dans la
 [documentation API](docs/API/README.md), qui distingue l’endpoint JSON des
-routes MVC de formulaires et de pages.
+routes MVC de formulaires et de pages. La spécification OpenAPI compatible
+Swagger Editor se trouve dans [API/Documentation/openapi.yaml](API/Documentation/openapi.yaml) ;
+son périmètre est limité à la route JSON réellement implémentée.
 
 ### Modèle métier
 
@@ -152,6 +154,12 @@ Les principales entités sont `Utilisateur` (avec les rôles client, employé et
 ```text
 Cin-ma/
 ├── README.md
+├── API/
+│   ├── README.md
+│   └── Documentation/
+│       └── openapi.yaml
+├── docs/
+│   └── API/                    # Référence détaillée des routes HTTP et MVC
 └── cynemma/
     ├── pom.xml
     ├── init_database.sql
@@ -160,13 +168,15 @@ Cin-ma/
         ├── main/
         │   ├── java/fr/turgot/
         │   │   ├── dao/           # DAO et modèles JPA
+        │   │   ├── api/controller/ # Endpoint JSON /api/trailer
+        │   │   ├── dao/           # DAO et modèles JPA
         │   │   ├── dto/           # Données transférées depuis TMDB
         │   │   ├── service/       # Appels TMDB et logique d'intégration
-        │   │   ├── servlet/       # Routes et contrôleurs
+        │   │   ├── servlet/       # Contrôleurs MVC et formulaires
         │   │   └── utils/         # JPA, CSRF, sessions et utilitaires
         │   ├── resources/         # persistence.xml
         │   └── webapp/            # JSP, CSS, images et descripteur web
-        └── test/java/             # Aucun test Java présent actuellement
+        └── test/java/             # Tests ciblés du contrat HTTP de l'API
 ```
 
 ## Prérequis
@@ -201,21 +211,23 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 4. Pour les appels TMDB, fournir la variable d’environnement `TMDB_API_KEY` au processus Java qui lance le conteneur web. Le service accepte aussi la propriété JVM `tmdb.api.key` si la variable n’est pas définie. Ne placez pas la clé dans le dépôt.
 
-5. Pour le cache TMDB, configurer dans le conteneur une `DataSource` MySQL liée au nom JNDI `java:comp/env/jdbc/cynema`. `web.xml` déclare la référence, mais le dépôt ne contient pas la configuration du conteneur qui crée et lie cette ressource. Cette `DataSource` doit viser la base contenant `tmdb_cache`.
+5. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
 
-6. Construire l’application :
+6. Pour le cache TMDB, configurer dans le conteneur une `DataSource` MySQL liée au nom JNDI `java:comp/env/jdbc/cynema`. `web.xml` déclare la référence, mais le dépôt ne contient pas la configuration du conteneur qui crée et lie cette ressource. Cette `DataSource` doit viser la base contenant `tmdb_cache`.
+
+7. Construire l’application :
 
    ```bash
    mvn clean package
    ```
 
-7. Déployer `target/cinema.war` dans le répertoire de déploiement de votre conteneur web. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
+8. Déployer `target/cinema.war` dans le répertoire de déploiement de votre conteneur web. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
 
    ```bash
    cp target/cinema.war "$CATALINA_HOME/webapps/"
    ```
 
-8. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
+9. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
 
 ### Base de données
 
@@ -249,7 +261,7 @@ Aucun compte de démonstration ni identifiant par défaut n’est fourni dans ce
 
 ## Tests et limites connues
 
-Aucun fichier de test Java n’a été trouvé sous `src/test/java`. Maven est déclaré comme outil de build, mais la présence de JUnit dans le POM ne signifie pas qu’une suite de tests existe.
+Des tests Java ciblés vérifient le mapping et les réponses de validation de l’endpoint de bande-annonce. Aucun test d’intégration couvrant les appels TMDB, la base de données ou les autres routes MVC n’est présent.
 Le dépôt ne contient pas non plus de test d’intégration de l’API TMDB ; son bon fonctionnement dépend de la clé TMDB, de l’accès réseau, de la table `tmdb_cache` et de la `DataSource` JNDI configurée dans le conteneur.
 
 Commandes disponibles :

@@ -1,0 +1,158 @@
+openapi: 3.0.3
+info:
+  title: Cynemma API
+  version: "1.0"
+  description: >-
+    Contrat de l'unique endpoint JSON actuellement implémenté par l'application.
+    Les autres routes HTTP sont des interfaces MVC documentées séparément.
+servers:
+  - url: /cinema
+    description: >-
+      Contexte indicatif correspondant au nom du WAR produit. Le contexte réel
+      dépend du conteneur et peut devoir être remplacé.
+tags:
+  - name: Bandes-annonces
+    description: Recherche d'une bande-annonce YouTube via TMDB et le cache local.
+paths:
+  /api/trailer:
+    get:
+      tags:
+        - Bandes-annonces
+      summary: Rechercher une bande-annonce
+      description: >-
+        Recherche d'abord dans le cache local, puis auprès de TMDB si nécessaire.
+        Aucune authentification de session ou de rôle n'est vérifiée par cette
+        servlet.
+      operationId: getTrailer
+      security: []
+      parameters:
+        - name: film
+          in: query
+          required: true
+          description: >-
+            Titre du film. Les espaces de début/fin sont retirés et les espaces
+            consécutifs sont normalisés. Le titre ne doit pas être blanc et ne
+            peut pas dépasser 255 caractères. Si year est fourni, la clé de
+            cache inclut aussi l'année et sa limite de 255 caractères peut
+            réduire la longueur effective admissible du titre.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          example: Interstellar
+        - name: year
+          in: query
+          required: false
+          description: >-
+            Année de sortie utilisée pour préciser la recherche TMDB. Une valeur
+            absente ou vide est traitée comme si le paramètre n'était pas fourni.
+          schema:
+            type: integer
+            minimum: 1888
+            maximum: 9999
+          example: 2014
+      responses:
+        "200":
+          description: Bande-annonce trouvée.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrailerResponse"
+              examples:
+                trailer:
+                  summary: Bande-annonce YouTube trouvée
+                  value:
+                    key: zSWdZVtXT7E
+                    watchUrl: https://www.youtube.com/watch?v=zSWdZVtXT7E
+                    embedUrl: https://www.youtube-nocookie.com/embed/zSWdZVtXT7E
+        "400":
+          description: Paramètre film absent, année non numérique ou valeur invalide.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                filmMissing:
+                  value:
+                    erreur: "Paramètre 'film' manquant"
+                yearInvalid:
+                  value:
+                    erreur: "Paramètre 'year' invalide"
+        "404":
+          description: Aucune bande-annonce disponible pour le titre recherché.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                erreur: Aucune bande-annonce disponible
+        "500":
+          description: Erreur interne, SQL/JNDI ou configuration TMDB manquante.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                erreur: Erreur interne
+        "502":
+          description: Erreur de communication avec TMDB ou réponse externe invalide.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                erreur: Le service TMDB est temporairement indisponible
+        "503":
+          description: Recherche interrompue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                erreur: La recherche de bande-annonce a été interrompue
+        "504":
+          description: Délai d'attente de TMDB dépassé.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                erreur: Le service TMDB est temporairement indisponible
+        "405":
+          description: >-
+            Méthode HTTP non implémentée par cette servlet. La réponse est
+            produite par HttpServlet et son format dépend du conteneur.
+components:
+  schemas:
+    TrailerResponse:
+      type: object
+      required:
+        - key
+        - watchUrl
+        - embedUrl
+      properties:
+        key:
+          type: string
+          minLength: 11
+          maxLength: 11
+          pattern: "^[A-Za-z0-9_-]{11}$"
+          description: Clé de vidéo YouTube retournée par la recherche.
+          example: zSWdZVtXT7E
+        watchUrl:
+          type: string
+          format: uri
+          description: URL YouTube de visionnage construite à partir de key.
+          example: https://www.youtube.com/watch?v=zSWdZVtXT7E
+        embedUrl:
+          type: string
+          format: uri
+          description: URL d'intégration YouTube sans cookies tiers.
+          example: https://www.youtube-nocookie.com/embed/zSWdZVtXT7E
+    ApiError:
+      type: object
+      required:
+        - erreur
+      properties:
+        erreur:
+          type: string
+          description: Message d'erreur renvoyé par la servlet.

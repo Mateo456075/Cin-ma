@@ -114,22 +114,29 @@ public class BilletServlet extends HttpServlet {
 
         Seance seance = seanceDAO.getSeanceById(seanceId);
         Film film = filmDAO.getFilmById(filmId);
-        envoyerMail(user.getEmail(), user.getLogin(), film.getTitre(),
+        boolean emailEnvoye = envoyerMail(user.getEmail(), user.getLogin(), film.getTitre(),
                 seance.getDate(), seance.getHoraire(), nbPlaces, salle.getNom());
 
-        request.setAttribute("succes", "Réservation confirmée ! Un email vous a été envoyé.");
+        request.setAttribute("succes", emailEnvoye
+                ? "Réservation confirmée ! Un email vous a été envoyé."
+                : "Réservation confirmée, mais l'email de confirmation n'a pas pu être envoyé.");
         request.setAttribute("film", film);
         request.setAttribute("seance", seance);
         getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
                 .forward(request, response);
     }
 
-    private void envoyerMail(String destinataire, String pseudo, String titreFilm,
-    String date, String horaire, int nbPlaces, String nomSalle) {
+    private boolean envoyerMail(String destinataire, String pseudo, String titreFilm,
+            String date, String horaire, int nbPlaces, String nomSalle) {
         String host = "smtp-mail.outlook.com";
         String port = "587";
-        String mailFrom = "Cinema.com@outlook.fr";
-        String password = "Cinema.com12";
+        String mailFrom = System.getenv("SMTP_USERNAME");
+        String password = System.getenv("SMTP_PASSWORD");
+        if (mailFrom == null || mailFrom.isBlank() || password == null || password.isBlank()) {
+            getServletContext().log(
+                    "SMTP_USERNAME et SMTP_PASSWORD doivent être configurées pour envoyer les confirmations.");
+            return false;
+        }
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
@@ -160,8 +167,10 @@ public class BilletServlet extends HttpServlet {
                 "L'équipe Cynemma"
             );
             Transport.send(message);
+            return true;
         } catch (MessagingException e) {
-            e.printStackTrace();
+            getServletContext().log("Impossible d'envoyer l'email de confirmation de réservation.", e);
+            return false;
         }
     }
 }

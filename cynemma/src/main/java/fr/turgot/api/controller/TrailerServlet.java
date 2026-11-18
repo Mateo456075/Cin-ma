@@ -1,4 +1,4 @@
-package fr.turgot.servlet.api;
+package fr.turgot.api.controller;
 
 import java.io.IOException;
 import java.sql.SQLException;
