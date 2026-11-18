@@ -26,7 +26,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-@WebServlet("/employe/tmdb/catalogue")
+@WebServlet(name = "TmdbCatalogImportServlet", urlPatterns = {
+        "/employe/tmdb/catalogue",
+        "/catalogueTmdb"
+})
 public class TmdbCatalogImportServlet extends HttpServlet {
 
     private static final String SUGGESTIONS_JSP = "/WEB-INF/Employer/TmdbSuggestions.jsp";

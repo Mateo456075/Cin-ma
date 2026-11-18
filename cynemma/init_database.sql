@@ -145,3 +145,9 @@ CREATE TABLE billets (
     CONSTRAINT fk_billets_siege
         FOREIGN KEY (siege_id) REFERENCES sieges(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT DELAYED IGNORE INTO `utilisateurs` (`id`, `nom`, `email`, `mot_de_passe`, `login`, `type_utilisateur`) VALUES
+(2, 'mateo', 'mateo@icloud.fr', '$2a$10$pr2HN2P.ha/.kkqzmo7VSObeoY5vA3icMGx2AtjOtGbWYDJrYZUQi', 'let', 'CLIENT'),
+(3, 'daniel', 'Mateo@ivlourd.com', '$2a$10$iz2dyIWZqkn1htND08kK..1UxKbjp340DtgPqPyQGU6HEF1ntgtr2', 'mateo.martinez', 'EMPLOYE'),
+(5, 'aaa', 'MMM@MMMM.mm', '$2a$10$5EkxJM4BIbTcEWC78PQgjObo8mk0jzt/WKwBVRS43bs9xl5sqXcsO', 'aaa', 'ADMINISTRATEUR'),
+(7, 'Séb', 'sluu@gmail.com', '$2a$10$nXLolbmoysSQCG0gG9KHV.nP6SsCSogxjMBbXmcJgFfoljGK40iBu', 'sluu', 'CLIENT');

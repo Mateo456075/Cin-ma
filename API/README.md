@@ -84,6 +84,11 @@ de sa propre `DataSource` JNDI `java:comp/env/jdbc/cynema`. Configurer la
 DataSource dans le conteneur de l'API avec la même base et des identifiants
 injectés par l'environnement ou un gestionnaire de secrets. Le POM ne crée pas
 la base et l'API n'utilise pas l'EntityManager de l'application principale.
+Sous Tomcat, le pilote `mysql-connector-j` doit être installé dans le dossier
+`lib` du serveur ; la dépendance de l'API est donc fournie par le conteneur et
+n'est pas recopiée dans le WAR. Préférer un contexte Tomcat propre à
+`cynemma-api` pour la DataSource afin de ne pas diffuser ses identifiants aux
+autres applications.
 
 Variables nécessaires :
 
@@ -94,10 +99,54 @@ Variables nécessaires :
 | `CYNEMMA_JWT_PRIVATE_KEY` | Application principale | Signature des jetons employés |
 | `CYNEMMA_API_BASE_URL` | Application principale | Origine + contexte du WAR API, sans `/api` final |
 
+Pour le développement local, les deux WAR lisent chaque valeur dans cet ordre :
+variable d'environnement, propriété système Java du même nom, puis fichier
+`.local-secrets/cynemma.env`. Le fichier est recherché depuis le répertoire de
+lancement et les répertoires Tomcat ; il peut aussi être indiqué avec
+`-Dcynemma.config.file=/chemin/absolu/cynemma.env`. Sous Tomcat, le fichier
+`${catalina.base}/conf/cynemma.env` est également pris en charge.
+Ne versionnez jamais ce fichier : il contient notamment la clé privée JWT.
+
 L'absence de `TMDB_API_KEY` n'empêche pas le démarrage du WAR. L'endpoint santé
 vérifie MySQL indépendamment de TMDB ; les endpoints qui nécessitent TMDB
 répondent HTTP 503 avec un message JSON explicite jusqu'à la configuration de
-la clé.
+la clé. Un texte de remplacement tel que `METTRE_TA_CLE_TMDB_ICI` est rejeté
+explicitement.
+
+### Configurer une clé TMDB en développement local
+
+1. Obtenir une clé API depuis les paramètres API du compte TheMovieDB.
+2. Ajouter la valeur au fichier ignoré par Git
+   `.local-secrets/cynemma.env`, à la racine du dépôt :
+
+   ```text
+   TMDB_API_KEY=votre_cle_tmdb
+   ```
+
+3. La clé peut également être placée dans
+   `${catalina.base}/conf/cynemma.env` avec la même syntaxe :
+
+   ```text
+   TMDB_API_KEY=votre_cle_tmdb
+   ```
+
+4. Redémarrer Tomcat après toute modification du fichier.
+5. Vérifier le résultat avec cette requête locale :
+
+   ```http
+   GET http://localhost:8080/cynemma-api/api/trailer?film=Interstellar&year=2014
+   Accept: application/json
+   ```
+
+Une valeur `METTRE_TA_CLE_TMDB_ICI` ou
+`REPLACE_WITH_REAL_TMDB_API_KEY` est considérée comme un placeholder et refuse
+de contacter TMDB. Une erreur `503` avec
+`{"erreur":"Le service des bandes-annonces n'est pas configuré"}` indique que
+la clé est absente, vide ou encore remplacée par un placeholder.
+
+Ne placez jamais la clé dans le POM Maven, dans une URL Postman, dans les
+sources Java ou dans un fichier suivi par Git. Ne publiez pas les captures
+d'écran contenant sa valeur.
 
 Pour le déploiement local proposé ci-dessous, `CYNEMMA_API_BASE_URL` vaut
 `http://localhost:8081/cynemma-api`. Si les serveurs ne sont pas sur le même

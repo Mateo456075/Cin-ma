@@ -22,4 +22,17 @@ public class TmdbServiceTest {
         }
         throw new AssertionError("Une clé TMDB absente doit produire une erreur de configuration.");
     }
+
+    @Test
+    public void rejectsPlaceholderApiKey() {
+        try {
+            TmdbService.requireApiKey("METTRE_TA_CLE_TMDB_ICI");
+        } catch (TmdbService.TmdbConfigurationException e) {
+            assertEquals(
+                    "Remplace le placeholder de TMDB_API_KEY par une vraie clé TMDB.",
+                    e.getMessage());
+            return;
+        }
+        throw new AssertionError("Le placeholder ne doit pas être accepté comme clé TMDB.");
+    }
 }

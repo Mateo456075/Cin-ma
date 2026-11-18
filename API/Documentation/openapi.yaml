@@ -6,7 +6,7 @@ info:
     API HTTP du projet Cynemma. Les routes de lecture et les opérations
     d'intégration TMDB décrites ici sont implémentées dans ce projet.
 servers:
-  - url: http://localhost:8081/cynemma-api
+  - url: http://localhost:8080/cynemma-api
     description: Contexte indicatif pour le WAR cynemma-api en développement.
 tags:
   - name: Santé

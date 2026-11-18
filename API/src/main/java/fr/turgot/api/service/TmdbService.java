@@ -1,5 +1,7 @@
 package fr.turgot.api.service;
 
+import fr.turgot.api.config.LocalConfiguration;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -319,13 +321,18 @@ public class TmdbService {
     }
 
     private static String getApiKey() {
-        return requireApiKey(System.getenv("TMDB_API_KEY"));
+        return requireApiKey(LocalConfiguration.get("TMDB_API_KEY"));
     }
 
     static String requireApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new TmdbConfigurationException(
                     "La variable d'environnement TMDB_API_KEY doit être configurée.");
+        }
+        if ("METTRE_TA_CLE_TMDB_ICI".equalsIgnoreCase(apiKey.trim())
+                || "REPLACE_WITH_REAL_TMDB_API_KEY".equalsIgnoreCase(apiKey.trim())) {
+            throw new TmdbConfigurationException(
+                    "Remplace le placeholder de TMDB_API_KEY par une vraie clé TMDB.");
         }
         return apiKey;
     }

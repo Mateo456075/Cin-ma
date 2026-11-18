@@ -54,7 +54,7 @@ public final class ApiJwtTokenService {
     }
 
     private static PrivateKey readPrivateKey() {
-        String encodedKey = System.getenv(PRIVATE_KEY_ENVIRONMENT_VARIABLE);
+        String encodedKey = LocalConfiguration.get(PRIVATE_KEY_ENVIRONMENT_VARIABLE);
         if (encodedKey == null || encodedKey.isBlank()) {
             throw new IllegalStateException(
                     PRIVATE_KEY_ENVIRONMENT_VARIABLE + " doit être configurée.");

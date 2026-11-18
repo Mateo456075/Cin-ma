@@ -231,6 +231,9 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
    `CYNEMMA_JWT_PRIVATE_KEY` au processus Java principal. La clé privée ne doit
    pas être copiée dans le conteneur API ni placée dans le dépôt. La génération
    et le format des clés sont décrits dans [API/README.md](API/README.md).
+   En développement local, les deux WAR acceptent aussi les propriétés Java ou
+   le fichier ignoré par Git `.local-secrets/cynemma.env` si le lanceur Tomcat
+   ne transmet pas les variables d'environnement.
 
 6. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
 
@@ -301,7 +304,7 @@ Les deux commandes construisent et testent indépendamment chaque WAR.
 | Erreur de compilation | Vérifier la version du JDK : le POM demande la version de langage 21. Vérifier aussi l’installation de Maven. |
 | Erreur HTTP 403 lors d’une action | Vérifier que l’utilisateur possède le rôle attendu et que le formulaire inclut le jeton CSRF lorsqu’il est requis. |
 | Échec d’upload d’affiche | Le serveur n’accepte que les images PNG/JPEG valides et limite la taille et les dimensions ; consulter `CreatFilmServlet`. |
-| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` est définie dans le processus de l’API, que le serveur peut joindre TMDB et que la clé est valide. |
+| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` contient une vraie clé dans `.local-secrets/cynemma.env` ou dans `${catalina.base}/conf/cynemma.env`, redémarrer Tomcat, puis confirmer que l’API peut joindre TMDB. Ne jamais mettre la clé dans Git ou Postman. |
 | Erreur d’accès au cache TMDB | Vérifier que la table `tmdb_cache` existe et que le conteneur API a lié une `DataSource` au nom `java:comp/env/jdbc/cynema`. |
 | Email de réservation non reçu | Vérifier les paramètres et l’accès SMTP utilisés par l’application. Ne pas exposer d’identifiants de messagerie. |
 

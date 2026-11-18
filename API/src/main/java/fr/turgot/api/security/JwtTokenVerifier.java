@@ -1,5 +1,7 @@
 package fr.turgot.api.security;
 
+import fr.turgot.api.config.LocalConfiguration;
+
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -80,7 +82,7 @@ public final class JwtTokenVerifier {
     }
 
     private static java.security.PublicKey readPublicKey() {
-        String encodedKey = System.getenv(PUBLIC_KEY_ENVIRONMENT_VARIABLE);
+        String encodedKey = LocalConfiguration.get(PUBLIC_KEY_ENVIRONMENT_VARIABLE);
         if (encodedKey == null || encodedKey.isBlank()) {
             return null;
         }

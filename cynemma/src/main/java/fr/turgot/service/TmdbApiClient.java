@@ -104,7 +104,7 @@ public class TmdbApiClient {
     }
 
     private URI apiUri(String path) {
-        String baseUrl = System.getenv(BASE_URL_ENVIRONMENT_VARIABLE);
+        String baseUrl = LocalConfiguration.get(BASE_URL_ENVIRONMENT_VARIABLE);
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalStateException(
                     BASE_URL_ENVIRONMENT_VARIABLE + " doit être configurée.");
