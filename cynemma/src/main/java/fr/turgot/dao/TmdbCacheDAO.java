@@ -18,7 +18,7 @@ public class TmdbCacheDAO {
 
     private static final String DATA_SOURCE_NAME = "java:comp/env/jdbc/cynema";
     private static final Duration NEGATIVE_CACHE_TTL = Duration.ofDays(7);
-    private static final Duration TRAILER_CACHE_TTL = Duration.ofDays(30);
+    private static final Duration TRAILER_CACHE_TTL = Duration.ofDays(90);
 
     public Optional<CacheEntry> findByFilmTitle(String filmTitle) throws SQLException {
         String sql = "SELECT tmdb_id, trailer_key, cached_at FROM tmdb_cache WHERE film_title = ?";

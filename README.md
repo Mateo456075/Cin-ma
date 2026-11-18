@@ -121,7 +121,7 @@ TMDB est lue côté serveur dans `TMDB_API_KEY`, avec la propriété JVM
 d’expiration, il recherche le film par titre et, si fourni, par année, puis
 cherche une vidéo de type `Trailer` hébergée sur YouTube, en privilégiant les
 vidéos officielles. Il essaie le français puis l’anglais si nécessaire. Le
-cache expire après 7 jours pour les absences de bande-annonce et 30 jours pour
+cache expire après 7 jours pour les absences de bande-annonce et 90 jours pour
 les clés existantes.
 
 Pour le back-office, l’employé peut aussi consulter les nouveautés et préparer

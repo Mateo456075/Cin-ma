@@ -77,7 +77,7 @@ TmdbCacheDAO.findByFilmTitle()
    d’espaces à un seul espace.
 6. Le service demande à `TmdbCacheDAO` de chercher le titre dans
    `tmdb_cache`, par la `DataSource` JNDI `java:comp/env/jdbc/cynema`.
-7. Le DAO lit aussi `cached_at`. Une clé trouvée est conservée 30 jours ; un
+7. Le DAO lit aussi `cached_at`. Une clé trouvée est conservée 90 jours ; un
    résultat négatif (clé `NULL`) est conservé 7 jours. Une entrée expirée est
    traitée comme un cache miss.
 8. En cas d’absence dans le cache, le service récupère la clé TMDB dans la
@@ -339,7 +339,7 @@ le titre dans la requête SQL.
 Le DAO renvoie `Optional.empty()` si aucune ligne n’existe. Si une ligne existe,
 il renvoie un `CacheEntry` Java contenant `tmdbId` et `trailerKey`. Ces champs
 peuvent être `null`, notamment pour mémoriser qu’aucun résultat n’a été trouvé.
-Il lit aussi `cached_at` : une clé existante expire après 30 jours et une clé
+Il lit aussi `cached_at` : une clé existante expire après 90 jours et une clé
 `NULL` après 7 jours. Une entrée expirée est traitée comme absente, sans être
 supprimée ; une recherche ultérieure peut la remplacer.
 
@@ -550,7 +550,7 @@ de la clé TMDB ou de la `DataSource`.
 | JNDI `DataSource` non configurée | Le DAO transforme `NamingException` en `SQLException`; la réponse est 500. |
 | Thread interrompu pendant l’appel HTTP | La servlet renvoie 503 et rétablit le drapeau d’interruption. |
 
-Le cache expire après 7 jours pour les absences (clé `NULL`) et après 30 jours
+Le cache expire après 7 jours pour les absences (clé `NULL`) et après 90 jours
 pour les clés existantes. Il n’y a pas de tâche de nettoyage : les lignes
 expirées restent dans la table jusqu’à leur remplacement.
 
@@ -626,7 +626,7 @@ expirées restent dans la table jusqu’à leur remplacement.
    contrat de la route et le schéma.
 2. **Premier résultat TMDB choisi.** L’année peut réduire les homonymies, mais
    le service prend toujours le premier résultat retourné par TMDB.
-3. **Durées de cache fixes.** Les TTL sont de 7 et 30 jours et ne sont pas
+3. **Durées de cache fixes.** Les TTL sont de 7 et 90 jours et ne sont pas
    configurables.
 4. **Configuration JNDI à fournir.** `web.xml` déclare la référence, mais le
    serveur doit la relier à une `DataSource` réelle.
