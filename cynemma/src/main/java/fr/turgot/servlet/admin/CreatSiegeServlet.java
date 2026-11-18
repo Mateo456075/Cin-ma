@@ -12,6 +12,7 @@ import fr.turgot.dao.model.Siege;
 import fr.turgot.dao.model.Utilisateur;
 import fr.turgot.utils.CsrfProtection;
 import fr.turgot.utils.LinkHelper;
+import fr.turgot.utils.SeatLayoutCalculator;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -119,6 +120,25 @@ public class CreatSiegeServlet extends HttpServlet {
                 siege.setNumero(i);
                 siege.setRangee(rangee);
                 siegeDAO.create(siege);
+            }
+            rangee.getSieges().clear();
+            for (Siege siege : siegeDAO.getByIdRangee(rangee.getId())) {
+                rangee.getSieges().add(siege);
+            }
+            List<Rangee> rangees = rangeeDAO.getByIdSalle(salleId);
+            for (Rangee existing : rangees) {
+                if (existing.getSieges().isEmpty()) {
+                    for (Siege siege : siegeDAO.getByIdRangee(existing.getId())) {
+                        existing.getSieges().add(siege);
+                    }
+                }
+            }
+            SeatLayoutCalculator.applyLayout(rangees, salle.getConfiguration());
+            for (Rangee existing : rangees) {
+                rangeeDAO.updateElevation(existing);
+                for (Siege siege : existing.getSieges()) {
+                    siegeDAO.updatePosition(siege);
+                }
             }
 
             // Retour à la gestion des sièges de cette même salle

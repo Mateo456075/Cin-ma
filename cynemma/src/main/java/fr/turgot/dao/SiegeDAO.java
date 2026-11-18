@@ -23,6 +23,22 @@ public class SiegeDAO {
         }
     }
 
+    public void updatePosition(Siege siege) {
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        try {
+            em.getTransaction().begin();
+            Siege managed = em.find(Siege.class, siege.getId());
+            if (managed != null) {
+                managed.setCoordonneeX(siege.getCoordonneeX());
+                managed.setCoordonneeZ(siege.getCoordonneeZ());
+                managed.setAngleRotation(siege.getAngleRotation());
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
+
     /**
      * Retourne tous les sièges d'une rangée donnée.
      */

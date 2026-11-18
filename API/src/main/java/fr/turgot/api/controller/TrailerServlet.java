@@ -30,14 +30,11 @@ public class TrailerServlet extends HttpServlet {
 
         Integer year = null;
         String yearParameter = request.getParameter("year");
-        if (yearParameter != null && !yearParameter.isBlank()) {
-            try {
-                year = Integer.valueOf(yearParameter);
-            } catch (NumberFormatException e) {
-                writeError(response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Paramètre 'year' invalide");
-                return;
-            }
+        try {
+            year = parseOptionalYear(yearParameter);
+        } catch (IllegalArgumentException e) {
+            writeError(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            return;
         }
 
         try {
@@ -80,5 +77,21 @@ public class TrailerServlet extends HttpServlet {
             throws IOException {
         response.setStatus(status);
         response.getWriter().write(new JSONObject().put("erreur", message).toString());
+    }
+
+    static Integer parseOptionalYear(String yearParameter) {
+        if (yearParameter == null || yearParameter.isBlank()) {
+            return null;
+        }
+        try {
+            int year = Integer.parseInt(yearParameter.trim());
+            if (year < 1888 || year > 9999) {
+                throw new IllegalArgumentException(
+                        "L'année doit être comprise entre 1888 et 9999.");
+            }
+            return year;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Paramètre 'year' invalide", e);
+        }
     }
 }

@@ -23,6 +23,20 @@ public class RangeeDAO {
         }
     }
 
+    public void updateElevation(Rangee rangee) {
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        try {
+            em.getTransaction().begin();
+            Rangee managed = em.find(Rangee.class, rangee.getId());
+            if (managed != null) {
+                managed.setElevationY(rangee.getElevationY());
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
+
     /**
      * Retourne toutes les rangées d'une salle donnée.
      */
