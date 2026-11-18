@@ -139,6 +139,9 @@ exposée, mais son utilisation par l’interface n’est pas établie.
 Pour une explication détaillée du fonctionnement de l’API, de son parcours de
 requête et de l’intégration TMDB, consultez
 [EXPLICATION_FONCTIONNEMENT_API.md](EXPLICATION_FONCTIONNEMENT_API.md).
+La référence des routes HTTP de l’application est présentée dans la
+[documentation API](docs/API/README.md), qui distingue l’endpoint JSON des
+routes MVC de formulaires et de pages.
 
 ### Modèle métier
 
