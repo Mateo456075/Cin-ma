@@ -56,7 +56,7 @@ public class Salledisposiege {
         }
     }
 
-    // --- MODELE 2 : SALLE RECTANGULAIRE AVEC ALLÉES (Ton schéma) ---
+    // --- MODELE 2 : SALLE RECTANGULAIRE AVEC ALLÉES ---
     private static void genererSalleRectangulaire(PrintWriter writer, int idSalle, int capacite, boolean first) {
         int placesParRangee = 20;
         int placesBlocGauche = 5;

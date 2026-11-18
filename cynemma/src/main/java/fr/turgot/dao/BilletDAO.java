@@ -1,5 +1,6 @@
 package fr.turgot.dao;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import fr.turgot.dao.model.Billet;
@@ -10,6 +11,7 @@ import fr.turgot.dao.model.Seance;
 import fr.turgot.dao.model.Siege;
 import fr.turgot.utils.JPAUtil;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 public class BilletDAO {
     public void create(Billet billet) {
@@ -37,6 +39,26 @@ public class BilletDAO {
         }
     }
 
+    public int getPlacesDisponibles(int seanceId) {
+        try (EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager()) {
+            Seance seance = em.find(Seance.class, seanceId);
+            if (seance == null) {
+                return 0;
+            }
+
+            Long count = em.createQuery(
+                    "SELECT COUNT(si) FROM Siege si " +
+                    "WHERE si.rangee.salle.id = :salleId " +
+                    "AND si.id NOT IN (" +
+                    "SELECT b.siege.id FROM Billet b WHERE b.seanceId = :seanceId)",
+                    Long.class)
+                .setParameter("salleId", seance.getSalleId())
+                .setParameter("seanceId", seanceId)
+                .getSingleResult();
+            return Math.toIntExact(count);
+        }
+    }
+
     public boolean createReservation(int seanceId, int clientId, int nombrePlaces) {
         if (nombrePlaces < 1) {
             throw new IllegalArgumentException("Le nombre de places doit être positif.");
@@ -45,10 +67,14 @@ public class BilletDAO {
         try (EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager()) {
             em.getTransaction().begin();
             try {
-                Seance seance = em.find(Seance.class, seanceId);
+                Seance seance = em.find(
+                        Seance.class, seanceId, LockModeType.PESSIMISTIC_WRITE);
                 Client client = em.find(Client.class, clientId);
-                if (seance == null || client == null) {
-                    throw new IllegalArgumentException("Séance ou client introuvable.");
+                if (seance == null || client == null
+                        || seance.getDateHeure() == null
+                        || !seance.getDateHeure().isAfter(java.time.LocalDateTime.now())) {
+                    em.getTransaction().rollback();
+                    return false;
                 }
 
                 List<Siege> siegesDisponibles = em.createQuery(
@@ -85,9 +111,22 @@ public class BilletDAO {
                 if (em.getTransaction().isActive()) {
                     em.getTransaction().rollback();
                 }
+                if (isDuplicateSeatConstraint(e)) {
+                    return false;
+                }
                 throw e;
             }
         }
+    }
+
+    static boolean isDuplicateSeatConstraint(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sqlException
+                    && sqlException.getErrorCode() == 1062) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Salle getSalleBySeanceId(int seanceId) {

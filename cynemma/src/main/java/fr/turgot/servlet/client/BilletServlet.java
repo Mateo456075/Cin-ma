@@ -1,6 +1,7 @@
 package fr.turgot.servlet.client;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Properties;
 
 import fr.turgot.dao.BilletDAO;
@@ -22,6 +23,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 @WebServlet(name = "/BilletServlet", value = "/billetterie")
 public class BilletServlet extends HttpServlet {
@@ -36,29 +38,36 @@ public class BilletServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Utilisateur user = (Utilisateur) request.getSession().getAttribute("usere");
+        Utilisateur user = getCurrentClient(request);
         if (user == null || !"CLIENT".equalsIgnoreCase(user.getTypeUtilisateur())) {
             response.sendRedirect(request.getContextPath() + "/index.jsp");
             return;
         }
         CsrfProtection.ensureToken(request);
 
-        int seanceId = Integer.parseInt(request.getParameter("seanceId"));
-        int filmId = Integer.parseInt(request.getParameter("filmId"));
+        BookingContext booking;
+        try {
+            booking = loadBooking(
+                    parsePositiveParameter(request, "seanceId"),
+                    parsePositiveParameter(request, "filmId"));
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "Les identifiants de séance et de film doivent être des entiers positifs.");
+            return;
+        }
+        if (booking == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                    "La séance, le film ou la salle demandée est introuvable.");
+            return;
+        }
+        if (!isBookable(booking.seance())) {
+            response.sendError(HttpServletResponse.SC_CONFLICT,
+                    "Cette séance n'est plus réservable.");
+            return;
+        }
 
-        Seance seance = seanceDAO.getSeanceById(seanceId);
-        Film film = filmDAO.getFilmById(filmId);
-        Salle salle = billetDAO.getSalleBySeanceId(seanceId);
-        int placesReservees = billetDAO.getPlacesReservees(seanceId);
-        int placesDisponibles = salle.getCapacite() - placesReservees;
-
-        request.setAttribute("seance", seance);
-        request.setAttribute("film", film);
-        request.setAttribute("salle", salle);
-        request.setAttribute("placesDisponibles", placesDisponibles);
-
-        getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
-                .forward(request, response);
+        renderBookingForm(request, response, booking,
+                billetDAO.getPlacesDisponibles(booking.seance().getId()));
     }
 
     // POST : enregistrer la réservation et envoyer le mail
@@ -66,7 +75,7 @@ public class BilletServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        Utilisateur user = (Utilisateur) request.getSession().getAttribute("usere");
+        Utilisateur user = getCurrentClient(request);
         if (user == null || !"CLIENT".equalsIgnoreCase(user.getTypeUtilisateur())) {
             response.sendRedirect(request.getContextPath() + "/index.jsp");
             return;
@@ -77,43 +86,49 @@ public class BilletServlet extends HttpServlet {
         }
         CsrfProtection.ensureToken(request);
 
-        int seanceId = Integer.parseInt(request.getParameter("seanceId"));
-        int filmId = Integer.parseInt(request.getParameter("filmId"));
-        int nbPlaces = Integer.parseInt(request.getParameter("nbPlaces"));
+        int seanceId;
+        int filmId;
+        int nbPlaces;
+        try {
+            seanceId = parsePositiveParameter(request, "seanceId");
+            filmId = parsePositiveParameter(request, "filmId");
+            nbPlaces = parsePositiveParameter(request, "nbPlaces");
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "Les identifiants et le nombre de places doivent être des entiers positifs.");
+            return;
+        }
 
-        Salle salle = billetDAO.getSalleBySeanceId(seanceId);
-        int placesReservees = billetDAO.getPlacesReservees(seanceId);
-        int placesDisponibles = salle.getCapacite() - placesReservees;
+        BookingContext booking = loadBooking(seanceId, filmId);
+        if (booking == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                    "La séance, le film ou la salle demandée est introuvable.");
+            return;
+        }
+        if (!isBookable(booking.seance())) {
+            response.sendError(HttpServletResponse.SC_CONFLICT,
+                    "Cette séance n'est plus réservable.");
+            return;
+        }
 
-        if (nbPlaces < 1 || nbPlaces > placesDisponibles) {
-            request.setAttribute("erreur", "Nombre de places invalide. Il reste " + placesDisponibles + " place(s).");
-            Seance seance = seanceDAO.getSeanceById(seanceId);
-            Film film = filmDAO.getFilmById(filmId);
-            request.setAttribute("seance", seance);
-            request.setAttribute("film", film);
-            request.setAttribute("salle", salle);
-            request.setAttribute("placesDisponibles", placesDisponibles);
-            getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
-                    .forward(request, response);
+        int placesDisponibles = billetDAO.getPlacesDisponibles(seanceId);
+        if (nbPlaces > placesDisponibles) {
+            request.setAttribute("erreur",
+                    "Le nombre de places demandé dépasse les places réellement disponibles.");
+            renderBookingForm(request, response, booking, placesDisponibles);
             return;
         }
 
         if (!billetDAO.createReservation(seanceId, user.getId(), nbPlaces)) {
             request.setAttribute("erreur", "Le nombre de places demandé n'est plus disponible.");
-            Seance seance = seanceDAO.getSeanceById(seanceId);
-            Film film = filmDAO.getFilmById(filmId);
-            request.setAttribute("seance", seance);
-            request.setAttribute("film", film);
-            request.setAttribute("salle", salle);
-            request.setAttribute("placesDisponibles",
-                    salle.getCapacite() - billetDAO.getPlacesReservees(seanceId));
-            getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
-                    .forward(request, response);
+            renderBookingForm(request, response, booking,
+                    billetDAO.getPlacesDisponibles(seanceId));
             return;
         }
 
-        Seance seance = seanceDAO.getSeanceById(seanceId);
-        Film film = filmDAO.getFilmById(filmId);
+        Seance seance = booking.seance();
+        Film film = booking.film();
+        Salle salle = booking.salle();
         boolean emailEnvoye = envoyerMail(user.getEmail(), user.getLogin(), film.getTitre(),
                 seance.getDate(), seance.getHoraire(), nbPlaces, salle.getNom());
 
@@ -122,8 +137,61 @@ public class BilletServlet extends HttpServlet {
                 : "Réservation confirmée, mais l'email de confirmation n'a pas pu être envoyé.");
         request.setAttribute("film", film);
         request.setAttribute("seance", seance);
+        request.setAttribute("salle", salle);
         getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
                 .forward(request, response);
+    }
+
+    static int parsePositiveInteger(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("La valeur est obligatoire.");
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            if (parsed <= 0) {
+                throw new IllegalArgumentException("La valeur doit être positive.");
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("La valeur doit être un entier.", e);
+        }
+    }
+
+    private static int parsePositiveParameter(HttpServletRequest request, String name) {
+        return parsePositiveInteger(request.getParameter(name));
+    }
+
+    private Utilisateur getCurrentClient(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session == null ? null : (Utilisateur) session.getAttribute("usere");
+    }
+
+    private BookingContext loadBooking(int seanceId, int filmId) {
+        Seance seance = seanceDAO.getSeanceById(seanceId);
+        Film film = filmDAO.getFilmById(filmId);
+        if (seance == null || film == null || seance.getFilmId() != filmId) {
+            return null;
+        }
+        Salle salle = billetDAO.getSalleBySeanceId(seanceId);
+        return salle == null ? null : new BookingContext(seance, film, salle);
+    }
+
+    private boolean isBookable(Seance seance) {
+        LocalDateTime start = seance.getDateHeure();
+        return start != null && start.isAfter(LocalDateTime.now());
+    }
+
+    private void renderBookingForm(HttpServletRequest request, HttpServletResponse response,
+            BookingContext booking, int placesDisponibles) throws ServletException, IOException {
+        request.setAttribute("seance", booking.seance());
+        request.setAttribute("film", booking.film());
+        request.setAttribute("salle", booking.salle());
+        request.setAttribute("placesDisponibles", placesDisponibles);
+        getServletContext().getRequestDispatcher("/WEB-INF/client/billet.jsp")
+                .forward(request, response);
+    }
+
+    private record BookingContext(Seance seance, Film film, Salle salle) {
     }
 
     private boolean envoyerMail(String destinataire, String pseudo, String titreFilm,

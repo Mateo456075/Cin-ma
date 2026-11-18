@@ -36,6 +36,17 @@ public class FilmDAO {
         }
     }
 
+    public boolean isAfficheUsedByAnotherFilm(String affiche) {
+        try (EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager()) {
+            Long count = em.createQuery(
+                    "SELECT COUNT(f) FROM Film f WHERE f.affiche = :affiche",
+                    Long.class)
+                .setParameter("affiche", affiche)
+                .getSingleResult();
+            return count > 0;
+        }
+    }
+
     public boolean update(Film film) {
         try (EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager()) {
             try {

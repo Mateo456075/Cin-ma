@@ -71,6 +71,10 @@ public class CreatSalleServlet extends HttpServlet {
             int nombreBalcons         = Integer.parseInt(balconsStr.trim());
             TypeSalle typeSalle       = TypeSalle.valueOf(typeSalleStr);
             DispositionSieges disp    = DispositionSieges.valueOf(dispositionStr);
+            if (capacite < 1 || !isBalconyCountAllowed(disp, nombreBalcons)) {
+                response.sendRedirect(request.getContextPath() + "/creersalle");
+                return;
+            }
 
             // 1. Créer la configuration de salle
             ConfigurationSalle config = new ConfigurationSalle();
@@ -90,5 +94,10 @@ public class CreatSalleServlet extends HttpServlet {
         }
 
         response.sendRedirect(request.getContextPath() + "/admins");
+    }
+
+    static boolean isBalconyCountAllowed(DispositionSieges disposition, int nombreBalcons) {
+        return nombreBalcons >= 0
+                && (disposition != DispositionSieges.IMAX || nombreBalcons == 0);
     }
 }

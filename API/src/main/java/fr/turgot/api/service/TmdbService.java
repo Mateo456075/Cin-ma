@@ -319,15 +319,23 @@ public class TmdbService {
     }
 
     private static String getApiKey() {
-        String apiKey = System.getenv("TMDB_API_KEY");
+        return requireApiKey(System.getenv("TMDB_API_KEY"));
+    }
+
+    static String requireApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
-            apiKey = System.getProperty("tmdb.api.key");
-        }
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException(
-                    "La variable TMDB_API_KEY ou la propriété tmdb.api.key doit être configurée.");
+            throw new TmdbConfigurationException(
+                    "La variable d'environnement TMDB_API_KEY doit être configurée.");
         }
         return apiKey;
+    }
+
+    public static final class TmdbConfigurationException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        private TmdbConfigurationException(String message) {
+            super(message);
+        }
     }
 
     private static String normalizeTitle(String filmTitle) {

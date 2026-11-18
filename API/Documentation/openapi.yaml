@@ -127,7 +127,7 @@ paths:
               example:
                 erreur: Le service TMDB est temporairement indisponible
         "503":
-          description: Recherche interrompue.
+          description: Recherche interrompue ou clé TMDB non configurée.
           content:
             application/json:
               schema:
@@ -297,7 +297,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "415":
-          description: Le Content-Type doit être application/json.
+          description: Le Content-Type doit être application/json avec UTF-8 ou sans paramètre charset.
           content:
             application/json:
               schema:
@@ -437,7 +437,8 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
     ServiceUnavailable:
-      description: Vérificateur JWT non configuré ou requête interrompue.
+      description: >-
+        Clé de vérification JWT ou clé TMDB non configurée, ou requête interrompue.
       content:
         application/json:
           schema:

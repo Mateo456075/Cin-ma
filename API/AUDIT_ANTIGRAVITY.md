@@ -3,6 +3,12 @@
 > Date : 18 novembre 2026
 > Périmètre : `/Volumes/MateoDISQ/Cin-ma/` — lecture seule, aucune modification effectuée.
 
+> **Note de mise à jour :** ce document conserve l'état historique de l'audit et
+> contient des constats qui ont été revérifiés depuis. Pour leur statut actuel,
+> les corrections et les points restant à décider, consulter
+> [`RAPPORT_CORRECTIONS_ANTIGRAVITY.md`](RAPPORT_CORRECTIONS_ANTIGRAVITY.md).
+> Toute ancienne clé TMDB a été expurgée et doit être révoquée.
+
 ---
 
 ## A. Résumé général
@@ -188,7 +194,7 @@ Le nombre de places `nbPlaces` est lu depuis le formulaire HTML. Le serveur calc
 ### 🟠 ÉLEVÉ
 
 **Clé API TMDB dans le code source** (`/cynemma/src/main/java/fr/turgot/utils/TmdbHelper.java`)
-La clé `5e6a5f2306d687b63ecaff5ca24c71d2` est en clair dans le fichier. Si ce projet est poussé sur GitHub (même en privé), la clé est exposée. À révoquer et régénérer sur TMDB dès que possible.
+Une clé TMDB était en clair dans l'ancien fichier `TmdbHelper.java`. Elle est à considérer comme compromise et doit être révoquée puis remplacée depuis le compte TMDB.
 
 **Pas de HTTPS** — Les mots de passe et tokens transitent en clair en HTTP local. Acceptable en développement, bloquant en production.
 

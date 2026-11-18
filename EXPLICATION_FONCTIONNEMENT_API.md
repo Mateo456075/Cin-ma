@@ -82,8 +82,7 @@ TmdbCacheDAO.findByFilmTitle()
    résultat négatif (clé `NULL`) est conservé 7 jours. Une entrée expirée est
    traitée comme un cache miss.
 8. En cas d’absence dans le cache, le service récupère la clé TMDB dans la
-   variable d’environnement `TMDB_API_KEY`, ou dans la propriété JVM
-   `tmdb.api.key` si la variable n’est pas définie.
+   variable d’environnement `TMDB_API_KEY` du processus API.
 9. Il envoie une requête TMDB de recherche par titre, ajoute le filtre d’année
    si `year` est fourni, puis prend l’identifiant du premier résultat.
 10. Avec cet identifiant, il demande les vidéos du film en français, puis en
@@ -401,7 +400,11 @@ l’identifiant local d’un film.
 
 ## 7. Configuration Maven et fichiers de configuration
 
-Le projet utilise [pom.xml](cynemma/pom.xml) pour déclarer ses dépendances et
+L'API TMDB est construite comme le WAR Maven indépendant `API/`; l'application
+principale `cynemma/` est un autre WAR et appelle ce service par HTTP. Chaque
+projet possède son propre POM.
+
+Le projet API utilise [pom.xml](API/pom.xml) pour déclarer ses dépendances et
 son assemblage :
 
 - `maven.compiler.release` vaut **21** : le projet est configuré pour le niveau
@@ -412,20 +415,17 @@ son assemblage :
 - `mysql-connector-j` fournit le pilote JDBC MySQL.
 - Le packaging est `war`, l’archive web déployable sur un conteneur compatible.
 
-`web.xml` déclare une référence `jdbc/cynema` de type
+Le `web.xml` de l'API déclare une référence `jdbc/cynema` de type
 `javax.sql.DataSource`. Son attribut `version` est 6.0 alors que la dépendance
 Servlet du POM est 6.1. Le code source ici ne permet pas de confirmer à lui
 seul la compatibilité effective du conteneur choisi avec cette combinaison.
 
-Le service ne lit aucun fichier `.env` ou fichier de propriétés dans les
-sources examinées. Il lit directement :
-
-1. la variable système `TMDB_API_KEY` ;
-2. sinon, la propriété JVM `tmdb.api.key`.
-
-Si aucune des deux n’est renseignée, `getApiKey()` lève une
-`IllegalStateException`. Toutefois, cette méthode n’est appelée qu’en cas de
-cache miss : une réponse déjà en cache peut être servie sans clé TMDB.
+Le service ne lit aucun fichier `.env` ou fichier de propriétés. Il lit
+exclusivement la variable d’environnement `TMDB_API_KEY` du processus API.
+Cette variable est lue à la demande : son absence ne bloque pas le démarrage ni
+la vérification de santé MySQL. Un cache hit pour une bande-annonce peut être
+servi sans clé ; un endpoint nécessitant un appel TMDB répond HTTP 503 tant que
+la clé n'est pas configurée.
 
 ## 8. Différence entre l’API Cynemma et TMDB
 
@@ -697,8 +697,7 @@ trouvée, il recommence en `en-US`.
 
 ### 10. Où la clé TMDB est-elle stockée et quand est-elle nécessaire ?
 
-Le service la lit dans `TMDB_API_KEY`, ou à défaut dans la propriété JVM
-`tmdb.api.key`. Il ne la demande qu’après un cache miss ; une réponse déjà en
+Le service la lit dans `TMDB_API_KEY`. Il ne la demande qu’après un cache miss ; une réponse déjà en
 cache ne nécessite pas de clé.
 
 ### 11. À quoi sert `Optional<String>` dans cette méthode ?

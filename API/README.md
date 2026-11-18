@@ -94,6 +94,11 @@ Variables nécessaires :
 | `CYNEMMA_JWT_PRIVATE_KEY` | Application principale | Signature des jetons employés |
 | `CYNEMMA_API_BASE_URL` | Application principale | Origine + contexte du WAR API, sans `/api` final |
 
+L'absence de `TMDB_API_KEY` n'empêche pas le démarrage du WAR. L'endpoint santé
+vérifie MySQL indépendamment de TMDB ; les endpoints qui nécessitent TMDB
+répondent HTTP 503 avec un message JSON explicite jusqu'à la configuration de
+la clé.
+
 Pour le déploiement local proposé ci-dessous, `CYNEMMA_API_BASE_URL` vaut
 `http://localhost:8081/cynemma-api`. Si les serveurs ne sont pas sur le même
 hôte, utiliser HTTPS et limiter l'accès réseau aux appels nécessaires.

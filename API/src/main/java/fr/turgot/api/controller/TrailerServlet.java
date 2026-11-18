@@ -54,6 +54,10 @@ public class TrailerServlet extends HttpServlet {
                     .put("watchUrl", "https://www.youtube.com/watch?v=" + trailerKey)
                     .put("embedUrl", "https://www.youtube-nocookie.com/embed/" + trailerKey)
                     .toString());
+        } catch (TmdbService.TmdbConfigurationException e) {
+            getServletContext().log("La clé TMDB n'est pas configurée dans le serveur API.", e);
+            writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Le service des bandes-annonces n'est pas configuré");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,

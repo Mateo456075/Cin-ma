@@ -56,7 +56,7 @@ comme résultat TMDB actuel pour ce titre.
 |---:|---|
 | 400 | `film` absent/blanc, `year` non numérique ou valeur invalide rejetée par le service |
 | 404 | Aucune bande-annonce disponible |
-| 500 | Erreur SQL/JNDI ou configuration TMDB manquante |
+| 500 | Erreur SQL/JNDI |
 | 502 | Erreur réseau/HTTP TMDB ou réponse JSON TMDB invalide |
 | 503 | Requête interrompue |
 | 504 | Délai d'attente TMDB dépassé |
@@ -66,6 +66,11 @@ Les réponses d'erreur contiennent une propriété `erreur`, par exemple :
 ```json
 {"erreur":"Aucune bande-annonce disponible"}
 ```
+
+Lorsque le cache ne suffit pas et que `TMDB_API_KEY` n'est pas configurée côté
+API, l'endpoint renvoie HTTP 503 avec un message indiquant que le service n'est
+pas configuré. L'absence de cette clé n'empêche pas le démarrage du WAR ni
+l'endpoint santé.
 
 #### Remarques
 

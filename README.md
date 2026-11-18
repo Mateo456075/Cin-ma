@@ -114,8 +114,7 @@ La servlet `TrailerServlet` expose `GET /api/trailer?film=<titre>` avec le
 paramètre facultatif `year=<année>` (le chemin est relatif au contexte de
 déploiement, par exemple `/cinema/api/trailer?film=Interstellar&year=2014`).
 Une réponse positive contient la clé YouTube, `watchUrl` et `embedUrl`. La clé
-TMDB est lue côté serveur dans `TMDB_API_KEY`, avec la propriété JVM
-`tmdb.api.key` comme solution de repli.
+TMDB est lue côté serveur API dans la variable d'environnement `TMDB_API_KEY`.
 
 Le service TMDB de `API/` consulte d’abord la table `tmdb_cache`. En cas d’absence ou
 d’expiration, il recherche le film par titre et, si fourni, par année, puis
@@ -224,8 +223,7 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 4. Construire puis déployer le WAR indépendant en suivant le
    [README de l'API](API/README.md). Seul son processus Java reçoit
-   `TMDB_API_KEY` (ou la propriété JVM `tmdb.api.key`) et
-   `CYNEMMA_JWT_PUBLIC_KEY`. Il nécessite une DataSource JNDI
+   `TMDB_API_KEY` et `CYNEMMA_JWT_PUBLIC_KEY`. Il nécessite une DataSource JNDI
    `java:comp/env/jdbc/cynema` vers la même base que l'application principale.
 
 5. Pour que l'application principale appelle l'API, fournir
@@ -303,7 +301,7 @@ Les deux commandes construisent et testent indépendamment chaque WAR.
 | Erreur de compilation | Vérifier la version du JDK : le POM demande la version de langage 21. Vérifier aussi l’installation de Maven. |
 | Erreur HTTP 403 lors d’une action | Vérifier que l’utilisateur possède le rôle attendu et que le formulaire inclut le jeton CSRF lorsqu’il est requis. |
 | Échec d’upload d’affiche | Le serveur n’accepte que les images PNG/JPEG valides et limite la taille et les dimensions ; consulter `CreatFilmServlet`. |
-| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` ou la propriété JVM `tmdb.api.key` est définie dans le processus de l’API, que le serveur peut joindre TMDB et que la clé est valide. |
+| Erreur lors d’un appel TMDB | Vérifier que `TMDB_API_KEY` est définie dans le processus de l’API, que le serveur peut joindre TMDB et que la clé est valide. |
 | Erreur d’accès au cache TMDB | Vérifier que la table `tmdb_cache` existe et que le conteneur API a lié une `DataSource` au nom `java:comp/env/jdbc/cynema`. |
 | Email de réservation non reçu | Vérifier les paramètres et l’accès SMTP utilisés par l’application. Ne pas exposer d’identifiants de messagerie. |
 
