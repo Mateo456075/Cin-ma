@@ -89,6 +89,16 @@ CREATE TABLE films (
     CONSTRAINT chk_films_duree CHECK (duree_minutes > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE tmdb_cache (
+    film_title VARCHAR(255) NOT NULL,
+    tmdb_id INT NULL,
+    trailer_key VARCHAR(64) NULL,
+    cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (film_title),
+    CONSTRAINT chk_tmdb_cache_id CHECK (tmdb_id IS NULL OR tmdb_id > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE seances (
     id INT AUTO_INCREMENT PRIMARY KEY,
     film_id INT NOT NULL,

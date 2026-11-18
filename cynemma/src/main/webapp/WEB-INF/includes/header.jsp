@@ -43,7 +43,7 @@
 
                         <%-- Menu Spécifique ADMINISTRATEUR --%>
                         <c:if test="${sessionScope.usere.typeUtilisateur == 'ADMINISTRATEUR'}">
-                            <li><a href="${pageContext.request.contextPath}/creerSalle">Créer une salle</a></li>
+                            <li><a href="${pageContext.request.contextPath}/creersalle">Créer une salle</a></li>
                             <li><a href="${pageContext.request.contextPath}/admins">Administration</a></li>
                         </c:if>
 
