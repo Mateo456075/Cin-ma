@@ -65,10 +65,19 @@ public class TmdbApiClient {
             throw apiFailure(response.statusCode(), new String(response.body(), StandardCharsets.UTF_8));
         }
         String contentType = response.headers().firstValue("Content-Type").orElse("");
-        if (!contentType.equalsIgnoreCase("image/jpeg") && !contentType.equalsIgnoreCase("image/png")) {
+        if (!isSupportedImageContentType(contentType)) {
             throw new IOException("L'API TMDB n'a pas retourné une image JPEG ou PNG.");
         }
         return response.body();
+    }
+
+    static boolean isSupportedImageContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+        String mediaType = contentType.split(";", 2)[0].trim();
+        return mediaType.equalsIgnoreCase("image/jpeg")
+                || mediaType.equalsIgnoreCase("image/png");
     }
 
     public void cacheTrailerForMovie(int tmdbId, String title, String employeeLogin)

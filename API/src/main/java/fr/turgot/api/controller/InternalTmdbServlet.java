@@ -171,8 +171,6 @@ public class InternalTmdbServlet extends HttpServlet {
 
     private boolean authorize(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
         switch (JwtTokenVerifier.authorizeEmployee(request)) {
             case AUTHORIZED -> {
                 return true;

@@ -1,6 +1,8 @@
 package fr.turgot.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 
@@ -21,6 +23,19 @@ public class TmdbApiClientTest {
 
         assertEquals("http", uri.getScheme());
         assertEquals("localhost", uri.getHost());
+    }
+
+    @Test
+    public void acceptsSupportedImageTypesWithCharsetParameters() {
+        assertTrue(TmdbApiClient.isSupportedImageContentType("image/jpeg; charset=UTF-8"));
+        assertTrue(TmdbApiClient.isSupportedImageContentType("image/png"));
+    }
+
+    @Test
+    public void rejectsUnsupportedImageTypes() {
+        assertFalse(TmdbApiClient.isSupportedImageContentType("application/json; charset=UTF-8"));
+        assertFalse(TmdbApiClient.isSupportedImageContentType("image/jpeg-malicious"));
+        assertFalse(TmdbApiClient.isSupportedImageContentType(null));
     }
 
     @Test(expected = IllegalStateException.class)
