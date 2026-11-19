@@ -323,11 +323,24 @@ utilise `multipart/form-data`.
 - **Validation observée :** champs obligatoires, année et durée parsables en
   entier, image décodable PNG/JPEG avec dimensions positives et au plus
   20 000 000 pixels. Limites Servlet : 10 Mio par fichier et 50 Mio par requête.
-- **Succès :** écrit l'affiche réencodée en PNG sous `image/`, crée le film puis
-  redirige vers `/listeFilms`.
+- **Succès :** écrit l'affiche réencodée en PNG dans le stockage externe
+  (`CYNEMMA_IMAGE_DIR` ou `${catalina.base}/cynemma-images`), conserve
+  `image/<nom>.png` dans la base, crée le film puis redirige vers `/listeFilms`.
 - **Erreurs explicites :** 403 pour accès/CSRF, 400 pour champs, nombres ou
-  images invalides. Une erreur de persistance lève une `ServletException`.
+  images invalides, 503 si le stockage n'est pas configuré, 500 en cas d'erreur
+  d'écriture. Une erreur de persistance lève une `ServletException`.
 - **Source :** [`CreatFilmServlet`](../../cynemma/src/main/java/fr/turgot/servlet/employe/CreatFilmServlet.java).
+
+### Affiche de film — `GET /image/{nom}`
+
+- **Accès :** public, car les affiches sont des ressources du catalogue.
+- **Paramètre de chemin :** un nom de fichier simple PNG/JPEG, sans sous-dossier.
+- **Traitement :** sert l'image depuis le stockage externe; les anciens fichiers
+  du répertoire déployé peuvent être lus en secours pendant la migration.
+- **Réponses :** 200 avec le type MIME correspondant; 404 pour un chemin invalide
+  ou un fichier absent; 503 si le stockage ne peut pas être consulté.
+- **Source :** [`PosterImageServlet`](../../cynemma/src/main/java/fr/turgot/servlet/PosterImageServlet.java)
+  et [`PosterStorage`](../../cynemma/src/main/java/fr/turgot/utils/PosterStorage.java).
 
 ### Modification d'un film — `GET, POST /modifierFilm`
 
@@ -401,13 +414,20 @@ utilise `multipart/form-data`.
 - **Validation observée :** identifiant TMDB positif ; titre et réalisateur
   requis (maximum 255 caractères), année 1895–2100, genre requis (maximum
   100 caractères), durée positive ; une affiche TMDB doit être disponible.
-- **Traitement :** recharge les détails TMDB, met en cache la bande-annonce,
-  télécharge/réencode l'affiche et persiste le film. Le film est soumis à
-  validation par l'employé avant l'import.
-- **Succès :** redirection vers `/listeFilms`.
+- **Traitement :** recharge les détails TMDB et vérifie l'identifiant TMDB dans
+  `films.tmdb_id` avant de télécharger l'affiche. L'image est validée puis
+  enregistrée dans le stockage externe; le film est persisté par JPA avec son
+  `tmdb_id`. Le cache de bande-annonce est actualisé ensuite par l'API
+  indépendante : il n'est pas lié par clé étrangère à `films` et ne partage pas
+  sa transaction.
+- **Succès :** redirection vers `/listeFilms` avec confirmation; un film déjà
+  importé n'est pas ajouté une seconde fois. Si l'API de cache échoue après
+  l'enregistrement du film, la page indique que le catalogue est à jour mais
+  que le cache de bande-annonce reste à actualiser.
 - **Erreurs :** 403 accès/CSRF, 400 identifiant invalide ; validation de
-  formulaire réaffichée dans la JSP ; 503 interruption, 502 communication
-  TMDB/affiche, 500 erreur interne/SQL.
+  formulaire et échec d'insertion réaffichés dans la JSP ; 503 interruption ou
+  stockage non configuré, 502 communication TMDB/affiche, 500 erreur de
+  stockage ou erreur interne.
 - **Remarque :** ce parcours HTML n'est pas une API JSON et ne remplace pas la
   création manuelle.
 - **Source :** [`TmdbCatalogImportServlet`](../../cynemma/src/main/java/fr/turgot/servlet/employe/TmdbCatalogImportServlet.java)
@@ -506,7 +526,7 @@ utilise `multipart/form-data`.
 | Catégorie | Routes |
 |---|---|
 | Public et compte | `/accueil`, `/page`, `/connexion`, `/nouveaucompte`, `/changerMotDePasse`, `/deconnexion` |
-| Catalogue et programmation | `/listeFilms`, `/creerfilm`, `/modifierFilm`, `/supprimerFilm`, `/nouvelleSeance`, `/employe/listeSeances`, `/employe/tmdb/catalogue` |
+| Catalogue et programmation | `/listeFilms`, `/creerfilm`, `/image/{nom}`, `/modifierFilm`, `/supprimerFilm`, `/nouvelleSeance`, `/employe/listeSeances`, `/employe/tmdb/catalogue` |
 | Client et réservation | `/client`, `/client/listeSeances`, `/billetterie` |
 | Administration | `/admins`, `/creersalle`, `/gererSieges`, `/supprimerUtilisateur`, `/modifierrole` |
 | JSON | `/api/trailer` |

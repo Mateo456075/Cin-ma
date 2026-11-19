@@ -1,18 +1,7 @@
 package fr.turgot.servlet.employe;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
-
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 
 import fr.turgot.dao.FilmDAO;
 import fr.turgot.dao.model.Film;
@@ -20,11 +9,13 @@ import fr.turgot.dao.model.Utilisateur;
 import fr.turgot.dto.TmdbMovie;
 import fr.turgot.service.TmdbApiClient;
 import fr.turgot.utils.CsrfProtection;
+import fr.turgot.utils.PosterStorage;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 @WebServlet(name = "TmdbCatalogImportServlet", urlPatterns = {
         "/employe/tmdb/catalogue",
@@ -34,11 +25,18 @@ public class TmdbCatalogImportServlet extends HttpServlet {
 
     private static final String SUGGESTIONS_JSP = "/WEB-INF/Employer/TmdbSuggestions.jsp";
     private static final String REVIEW_JSP = "/WEB-INF/Employer/TmdbReview.jsp";
-    private static final String UPLOAD_DIR = "image";
-    private static final long MAX_IMAGE_PIXELS = 20_000_000L;
 
-    private final FilmDAO filmDAO = new FilmDAO();
-    private final TmdbApiClient tmdbApiClient = new TmdbApiClient();
+    private final FilmDAO filmDAO;
+    private final TmdbApiClient tmdbApiClient;
+
+    public TmdbCatalogImportServlet() {
+        this(new FilmDAO(), new TmdbApiClient());
+    }
+
+    TmdbCatalogImportServlet(FilmDAO filmDAO, TmdbApiClient tmdbApiClient) {
+        this.filmDAO = filmDAO;
+        this.tmdbApiClient = tmdbApiClient;
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -87,6 +85,7 @@ public class TmdbCatalogImportServlet extends HttpServlet {
             return;
         }
         if (!CsrfProtection.isValid(request)) {
+            getServletContext().log("Requête d'import TMDB refusée : jeton CSRF absent ou invalide.");
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "Jeton CSRF invalide.");
             return;
         }
@@ -103,6 +102,12 @@ public class TmdbCatalogImportServlet extends HttpServlet {
         String localPosterPath = null;
         try {
             TmdbMovie tmdbMovie = tmdbApiClient.getMovieDetails(tmdbId, employee.getLogin());
+            if (filmDAO.getFilmByTmdbId(tmdbId) != null) {
+                boolean cacheUpdated = updateTrailerCache(tmdbMovie, employee);
+                redirectImportResult(request, response, "exists", cacheUpdated);
+                return;
+            }
+
             String title = parameter(request, "title");
             String director = parameter(request, "director");
             String genre = parameter(request, "genre");
@@ -133,10 +138,19 @@ public class TmdbCatalogImportServlet extends HttpServlet {
                 return;
             }
 
-            tmdbApiClient.cacheTrailerForMovie(tmdbId, title, employee.getLogin());
             byte[] posterBytes = tmdbApiClient.downloadPoster(tmdbId, employee.getLogin());
             try {
-                localPosterPath = savePoster(posterBytes, request);
+                localPosterPath = PosterStorage.save(posterBytes);
+            } catch (PosterStorage.InvalidImageException e) {
+                request.setAttribute("error", e.getMessage());
+                setReviewAttributes(request, tmdbMovie);
+                forward(request, response, REVIEW_JSP);
+                return;
+            } catch (PosterStorage.StorageConfigurationException e) {
+                getServletContext().log("Le stockage persistant des affiches n'est pas configuré.", e);
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                        "Le stockage des affiches n'est pas configuré.");
+                return;
             } catch (IOException e) {
                 getServletContext().log("Impossible d'enregistrer l'affiche TMDB localement.", e);
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
@@ -145,8 +159,17 @@ public class TmdbCatalogImportServlet extends HttpServlet {
             }
 
             Film film = new Film(title, director, year, genre, localPosterPath, duration);
+            film.setTmdbId(tmdbId);
             if (filmDAO.create(film) == null) {
-                deletePoster(localPosterPath, request);
+                Film concurrentFilm = filmDAO.getFilmByTmdbId(tmdbId);
+                if (concurrentFilm != null) {
+                    cleanupPoster(localPosterPath, request);
+                    localPosterPath = null;
+                    boolean cacheUpdated = updateTrailerCache(tmdbMovie, employee);
+                    redirectImportResult(request, response, "exists", cacheUpdated);
+                    return;
+                }
+                cleanupPoster(localPosterPath, request);
                 localPosterPath = null;
                 request.setAttribute("error", "Impossible d'enregistrer le film dans le catalogue.");
                 setReviewAttributes(request, tmdbMovie);
@@ -155,7 +178,8 @@ public class TmdbCatalogImportServlet extends HttpServlet {
             }
 
             localPosterPath = null;
-            response.sendRedirect(request.getContextPath() + "/listeFilms");
+            boolean cacheUpdated = updateTrailerCache(tmdbMovie, employee);
+            redirectImportResult(request, response, "created", cacheUpdated);
         } catch (InterruptedException e) {
             cleanupPoster(localPosterPath, request);
             Thread.currentThread().interrupt();
@@ -173,10 +197,18 @@ public class TmdbCatalogImportServlet extends HttpServlet {
     }
 
     private Utilisateur getEmployee(HttpServletRequest request) {
-        Utilisateur user = (Utilisateur) request.getSession().getAttribute("usere");
-        return user != null && "EMPLOYE".equalsIgnoreCase(user.getTypeUtilisateur())
-                ? user
-                : null;
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            getServletContext().log("Requête du catalogue TMDB refusée : session absente.");
+            return null;
+        }
+        Object sessionUser = session.getAttribute("usere");
+        if (!(sessionUser instanceof Utilisateur user)
+                || !"EMPLOYE".equalsIgnoreCase(user.getTypeUtilisateur())) {
+            getServletContext().log("Requête du catalogue TMDB refusée : rôle employé requis.");
+            return null;
+        }
+        return user;
     }
 
     private int parseTmdbId(String value) {
@@ -236,70 +268,6 @@ public class TmdbCatalogImportServlet extends HttpServlet {
         return submittedValue == null ? (defaultValue == null ? "" : defaultValue) : submittedValue;
     }
 
-    private String savePoster(byte[] bytes, HttpServletRequest request) throws IOException {
-        String applicationPath = request.getServletContext().getRealPath("/");
-        if (applicationPath == null) {
-            throw new IOException("Le conteneur ne fournit pas de chemin de stockage.");
-        }
-
-        BufferedImage image;
-        try (ImageInputStream imageInput =
-                     ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-            if (imageInput == null) {
-                throw new IOException("L'affiche TMDB ne peut pas être lue.");
-            }
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInput);
-            if (!readers.hasNext()) {
-                throw new IOException("Le format de l'affiche TMDB n'est pas pris en charge.");
-            }
-
-            ImageReader reader = readers.next();
-            try {
-                reader.setInput(imageInput, true, true);
-                String format = reader.getFormatName().toLowerCase(Locale.ROOT);
-                if (!format.equals("png") && !format.equals("jpeg") && !format.equals("jpg")) {
-                    throw new IOException("Seules les affiches PNG et JPEG sont acceptées.");
-                }
-                int width = reader.getWidth(0);
-                int height = reader.getHeight(0);
-                if (width <= 0 || height <= 0 || (long) width * height > MAX_IMAGE_PIXELS) {
-                    throw new IOException("Les dimensions de l'affiche dépassent la limite autorisée.");
-                }
-                image = reader.read(0);
-                if (image == null) {
-                    throw new IOException("L'affiche TMDB est invalide.");
-                }
-            } finally {
-                reader.dispose();
-            }
-        }
-
-        Path applicationRoot = Path.of(applicationPath).toAbsolutePath().normalize();
-        Path uploadDirectory = applicationRoot.resolve(UPLOAD_DIR).normalize();
-        String fileName = UUID.randomUUID() + ".png";
-        Path destination = uploadDirectory.resolve(fileName).normalize();
-        if (!destination.startsWith(uploadDirectory)) {
-            throw new IOException("Chemin de stockage d'affiche invalide.");
-        }
-
-        try {
-            Files.createDirectories(uploadDirectory);
-            try (var output = Files.newOutputStream(destination)) {
-                if (!ImageIO.write(image, "png", output)) {
-                    throw new IOException("Impossible d'enregistrer l'affiche TMDB.");
-                }
-            }
-        } catch (IOException e) {
-            try {
-                Files.deleteIfExists(destination);
-            } catch (IOException cleanupException) {
-                e.addSuppressed(cleanupException);
-            }
-            throw e;
-        }
-        return UPLOAD_DIR + "/" + fileName;
-    }
-
     private void cleanupPoster(String relativePath, HttpServletRequest request) {
         if (relativePath != null) {
             deletePoster(relativePath, request);
@@ -307,20 +275,38 @@ public class TmdbCatalogImportServlet extends HttpServlet {
     }
 
     private void deletePoster(String relativePath, HttpServletRequest request) {
-        String applicationPath = request.getServletContext().getRealPath("/");
-        if (applicationPath == null) {
-            return;
+        try {
+            PosterStorage.delete(relativePath, request.getServletContext());
+        } catch (IOException e) {
+            getServletContext().log("Impossible de supprimer l'affiche non associée au film.", e);
         }
-        Path applicationRoot = Path.of(applicationPath).toAbsolutePath().normalize();
-        Path uploadDirectory = applicationRoot.resolve(UPLOAD_DIR).normalize();
-        Path poster = applicationRoot.resolve(relativePath).normalize();
-        if (poster.startsWith(uploadDirectory)) {
-            try {
-                Files.deleteIfExists(poster);
-            } catch (IOException e) {
-                getServletContext().log("Impossible de supprimer l'affiche non associée au film.", e);
-            }
+    }
+
+    private boolean updateTrailerCache(TmdbMovie movie, Utilisateur employee) {
+        try {
+            tmdbApiClient.cacheTrailerForMovie(
+                    movie.getTmdbId(), movie.getTitle(), employee.getLogin());
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            getServletContext().log("La mise à jour du cache de bande-annonce a été interrompue.", e);
+            return false;
+        } catch (IOException e) {
+            getServletContext().log("Le film est enregistré, mais son cache de bande-annonce n'a pas été mis à jour.", e);
+            return false;
         }
+    }
+
+    private void redirectImportResult(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String result,
+            boolean cacheUpdated) throws IOException {
+        String location = request.getContextPath() + "/listeFilms?import=" + result;
+        if (!cacheUpdated) {
+            location += "&cache=unavailable";
+        }
+        response.sendRedirect(location);
     }
 
     private void forward(HttpServletRequest request, HttpServletResponse response, String path)

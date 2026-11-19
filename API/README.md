@@ -3,8 +3,10 @@
 ## Architecture
 
 `API/` est un projet Maven autonome qui produit `cynemma-api.war`. Il se déploie
-sur son propre conteneur Servlet ; ce n'est pas une deuxième base de données ni
-un microservice CRUD indépendant du domaine. L'application principale conserve
+comme application Web séparée, dans un contexte distinct du même conteneur
+Servlet que l'application principale (ou dans un conteneur séparé si
+l'exploitation le nécessite). Ce n'est pas une deuxième base de données ni un
+microservice CRUD indépendant du domaine. L'application principale conserve
 les JSP, les sessions utilisateur et la persistance des films importés.
 
 ```text
@@ -149,8 +151,9 @@ sources Java ou dans un fichier suivi par Git. Ne publiez pas les captures
 d'écran contenant sa valeur.
 
 Pour le déploiement local proposé ci-dessous, `CYNEMMA_API_BASE_URL` vaut
-`http://localhost:8081/cynemma-api`. Si les serveurs ne sont pas sur le même
-hôte, utiliser HTTPS et limiter l'accès réseau aux appels nécessaires.
+`http://localhost:8080/cynemma-api` lorsque les deux WAR sont déployés sur le
+même Tomcat. Si les applications ne sont pas sur le même hôte, utiliser HTTPS
+et limiter l'accès réseau aux appels nécessaires.
 
 Le schéma existant `tmdb_cache` reste partagé. Les transactions sont locales à
 chaque application ; aucune transaction JPA distribuée n'est créée. Les
@@ -169,10 +172,10 @@ cd API
 mvn clean package
 ```
 
-Déployer `target/cynemma-api.war` dans un second Tomcat écoutant, par exemple,
-sur le port 8081. Avant le démarrage, configurer `TMDB_API_KEY`,
-`CYNEMMA_JWT_PUBLIC_KEY` et la DataSource JNDI de ce conteneur. Vérifier
-`http://localhost:8081/cynemma-api/api/health`.
+Déployer `target/cynemma-api.war` dans le même Tomcat que l'application
+principale, sous le contexte `cynemma-api`. Avant le démarrage, configurer
+`TMDB_API_KEY`, `CYNEMMA_JWT_PUBLIC_KEY` et la DataSource JNDI de ce contexte.
+Vérifier `http://localhost:8080/cynemma-api/api/health`.
 
 Dans le conteneur de l'application principale, configurer
 `CYNEMMA_API_BASE_URL` et `CYNEMMA_JWT_PRIVATE_KEY`, puis déployer le WAR

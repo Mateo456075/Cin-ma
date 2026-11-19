@@ -80,12 +80,14 @@ CREATE TABLE sieges (
 
 CREATE TABLE films (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    tmdb_id INT NULL,
     titre VARCHAR(255) NOT NULL,
     duree_minutes INT NOT NULL,
     realisateur VARCHAR(255) NOT NULL,
     annee INT NOT NULL,
     genre VARCHAR(100) NOT NULL,
     affiche VARCHAR(255) NOT NULL,
+    CONSTRAINT uq_films_tmdb_id UNIQUE (tmdb_id),
     CONSTRAINT chk_films_duree CHECK (duree_minutes > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

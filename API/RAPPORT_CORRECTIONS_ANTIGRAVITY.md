@@ -7,7 +7,7 @@ Référence : [`AUDIT_ANTIGRAVITY.md`](AUDIT_ANTIGRAVITY.md)
 
 - **10 corrections de code ou de documentation appliquées.**
 - **4 constats du rapport initial non confirmés ou déjà obsolètes** dans l'état actuel du dépôt.
-- **2 sujets nécessitent une décision métier ou des paramètres absents** : les tarifs et la géométrie des salles/balcons.
+- **1 sujet nécessite une décision métier ou des paramètres absents** : les tarifs (la géométrie de base des salles/balcons étant désormais calculée par `SeatLayoutCalculator`).
 - **3 fonctionnalités restent non implémentées** : modification/suppression des séances, historique de réservations et sélection visuelle/3D des sièges.
 - Les deux projets Maven restent indépendants. Les tests et le packaging des deux WAR réussissent.
 - Le fonctionnement avec MySQL, TMDB et Tomcat n'a pas été vérifié en intégration.
@@ -42,11 +42,9 @@ Une ancienne clé TMDB a été divulguée dans le rapport d'audit source ; sa va
 
 Le formulaire ne transmet pas de tarif, ce qui évite de faire confiance au navigateur. Toutefois, ni `TypeSeance`, ni `ConfigurationSalle`, ni les tables ne définissent de grille tarifaire. `Billet.tarifApplique` et le total de réservation restent actuellement à zéro par défaut. Il faut définir les prix (par type de séance, salle, catégorie de siège ou autre règle) avant d'implémenter un recalcul métier correct ; aucun tarif n'a été inventé.
 
-### Priorité importante — coordonnées et balcons
+### Coordonnées et balcons — calcul implémenté
 
-Les entités disposent de `Siege.coordonneeX`, `coordonneeZ`, `angleRotation` et `Rangee.elevationY`, mais aucune règle ne fixe les dimensions, unités, espacements, allées, courbure, nombre de rangées par balcon ou hauteurs. `ConfigurationSalle` laisse aussi les espacements à `NULL` et ne modélise pas les balcons individuellement. L'ancien outil `Salledisposiege` utilise des capacités arbitraires et une table `places` absente du modèle actuel : il n'est pas une source fiable à brancher.
-
-Les coordonnées 3D et `elevation_y` restent donc non générées. La règle « IMAX sans balcon » est appliquée ; la politique des balcons pour `SCREEN_X` n'est pas déterminée dans les sources. Il faut fournir une convention géométrique et cette règle métier avant de compléter la génération.
+Les coordonnées (`Siege.coordonneeX`, `coordonneeZ`, `angleRotation`) et l'élévation (`Rangee.elevationY`) sont désormais calculées de manière déterministe via la classe utilitaire `SeatLayoutCalculator`, intégrée lors de la création des rangées et sièges dans `CreatSiegeServlet`. Le calcul prend en charge les quatre dispositions (`RECTANGLE`, `ARC_DE_CERCLE`, `IMAX` avec interdiction des balcons, et `SCREEN_X`) et la présence de balcons surélevés. La sélection interactive 3D côté client (Three.js) reste quant à elle non implémentée.
 
 ### Fonctionnalités absentes — hors correction de bugs
 

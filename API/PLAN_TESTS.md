@@ -24,6 +24,7 @@ Tests ajoutés:
 - `TrailerServletParametersTest`: année absente, blanche, valide, non numérique et hors bornes.
 - `TmdbCacheDAOTest`: accès JNDI absent pour lecture, écriture et health-check.
 - `JwtTokenVerifierExtendedTest`: mauvais émetteur, audience, ancienneté, token mal formé et algorithme interdit.
+- `LocalConfigurationTest`: hiérarchie de configuration (variables d'environnement, propriétés JVM, `.local-secrets/cynemma.env`, format et parsing).
 
 Lacunes restantes:
 
@@ -46,9 +47,14 @@ Lacunes restantes:
 | `DeleteFilmServletTest` | `DeleteFilmServlet` | Suppression et relations | 1 test |
 | `PageServletTest` | `PageServlet` | Liste blanche contre traversal | 2 tests |
 
-Test ajouté:
+Tests ajoutés:
 
 - `SeatLayoutCalculatorTest`: toutes les dispositions, coordonnées non nulles, reproductibilité, balcons et IMAX.
+- `LocalConfigurationTest`: résolution de configuration côté application principale (variables d'environnement, propriétés JVM, `cynemma.env`).
+- `PosterStorageTest`: validation des formats d'image, dimensions, corruption et persistance externe des affiches.
+- `EditFilmServletTest`: contrôle d'accès employé, CSRF, validation des paramètres et mise à jour de film.
+- `TmdbCatalogImportServletTest`: suggestions TMDB, préremplissage, téléchargement d'affiche et idempotence de l'import via `films.tmdb_id`.
+- `TmdbCatalogImportServletMappingTest`: mapping et contrôle d'accès de la servlet d'import du catalogue.
 
 Lacunes restantes:
 

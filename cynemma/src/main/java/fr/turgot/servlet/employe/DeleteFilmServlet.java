@@ -2,13 +2,13 @@ package fr.turgot.servlet.employe;
 
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import fr.turgot.dao.FilmDAO;
 import fr.turgot.dao.model.Film;
 import fr.turgot.dao.model.Utilisateur;
 import fr.turgot.utils.CsrfProtection;
+import fr.turgot.utils.PosterStorage;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -74,23 +74,6 @@ public class DeleteFilmServlet extends HttpServlet {
         if (!isSafePosterPath(relativePath)) {
             return;
         }
-        String realPath = getServletContext().getRealPath("/");
-        if (realPath == null) {
-            return;
-        }
-        Path webRoot = Path.of(realPath).toRealPath();
-        Path uploadDirectory = webRoot.resolve("image");
-        if (!Files.isDirectory(uploadDirectory)) {
-            return;
-        }
-        Path realUploadDirectory = uploadDirectory.toRealPath();
-        if (!realUploadDirectory.startsWith(webRoot)) {
-            return;
-        }
-        Path poster = webRoot.resolve(relativePath).normalize();
-        if (poster.getParent() != null
-                && poster.getParent().toRealPath().equals(realUploadDirectory)) {
-            Files.deleteIfExists(poster);
-        }
+        PosterStorage.delete(relativePath, getServletContext());
     }
 }

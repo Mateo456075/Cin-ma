@@ -171,6 +171,7 @@ Cin-ma/
 └── cynemma/
     ├── pom.xml
     ├── init_database.sql
+    ├── migrations/              # Migrations SQL de bases déjà créées
     ├── populate_kanboard.py
     └── src/
         ├── main/
@@ -182,9 +183,13 @@ Cin-ma/
         │   │   ├── servlet/       # Contrôleurs MVC et formulaires
         │   │   └── utils/         # JPA, CSRF, sessions et utilitaires
         │   ├── resources/         # persistence.xml
-        │   └── webapp/            # JSP, CSS, images et descripteur web
+        │   └── webapp/            # JSP, CSS, ressources web et descripteur
         └── test/java/             # Tests ciblés de l'application principale
 ```
+
+Les affiches référencées par `films.affiche` sont stockées hors du WAR et
+servies par `PosterImageServlet`; les nouveaux fichiers ne sont pas écrits dans
+`src/main/webapp`.
 
 Le WAR API indépendant est dans [`API/`](API/README.md). Il héberge les routes
 JSON et possède le service TMDB ainsi que le DAO du cache. L'application
@@ -221,13 +226,32 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 3. Configurer les paramètres de connexion à MySQL pour votre environnement dans [persistence.xml](cynemma/src/main/resources/META-INF/persistence.xml). Le fichier contient actuellement une URL locale sur le port `8889` ; adaptez l’URL, l’utilisateur et le mot de passe à votre installation. Ne publiez pas de secrets.
 
-4. Construire puis déployer le WAR indépendant en suivant le
+4. Pour une base créée avant l'ajout de l'import TMDB idempotent, exécuter une
+   seule fois la migration
+   [001_add_films_tmdb_id.sql](cynemma/migrations/001_add_films_tmdb_id.sql)
+   avant de déployer le WAR mis à jour. Pour une nouvelle base, le schéma
+   [init_database.sql](cynemma/init_database.sql) inclut déjà cette colonne.
+   Les films préexistants restent avec `tmdb_id = NULL` : la migration ne les
+   associe pas automatiquement à `tmdb_cache`, car cette table est indexée par
+   titre et ne constitue pas une relation fiable. Vérifier manuellement les
+   anciens imports TMDB avant de les réimporter.
+
+5. Configurer le stockage des affiches. Par défaut, elles sont écrites dans
+   `${catalina.base}/cynemma-images`, hors du WAR et donc conservées lors d'un
+   redéploiement. Le processus Tomcat doit pouvoir créer et écrire dans ce
+   répertoire. Pour choisir un autre emplacement, définir `CYNEMMA_IMAGE_DIR`
+   avec un chemin absolu dans l'environnement ou `cynemma.env`. Les anciennes
+   affiches du répertoire `image/` du déploiement doivent être copiées une fois
+   dans ce répertoire externe avant le prochain nettoyage du WAR ; leurs noms
+   relatifs en base restent inchangés.
+
+6. Construire puis déployer le WAR indépendant en suivant le
    [README de l'API](API/README.md). Seul son processus Java reçoit
    `TMDB_API_KEY` et `CYNEMMA_JWT_PUBLIC_KEY`. Il nécessite une DataSource JNDI
    `java:comp/env/jdbc/cynema` vers la même base que l'application principale.
 
-5. Pour que l'application principale appelle l'API, fournir
-   `CYNEMMA_API_BASE_URL` (par exemple `http://localhost:8081/cynemma-api`) et
+7. Pour que l'application principale appelle l'API, fournir
+   `CYNEMMA_API_BASE_URL` (par exemple `http://localhost:8080/cynemma-api` si déployé sur la même instance Tomcat, ou `http://localhost:8081/cynemma-api` en cas d'instance dédiée) et
    `CYNEMMA_JWT_PRIVATE_KEY` au processus Java principal. La clé privée ne doit
    pas être copiée dans le conteneur API ni placée dans le dépôt. La génération
    et le format des clés sont décrits dans [API/README.md](API/README.md).
@@ -235,21 +259,21 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
    le fichier ignoré par Git `.local-secrets/cynemma.env` si le lanceur Tomcat
    ne transmet pas les variables d'environnement.
 
-6. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
+8. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
 
-7. Construire l’application principale :
+9. Construire l’application principale :
 
    ```bash
    mvn clean package
    ```
 
-8. Déployer `target/cinema.war` dans le répertoire de déploiement du conteneur principal. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
+10. Déployer `target/cinema.war` dans le répertoire de déploiement du conteneur principal. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
 
    ```bash
    cp target/cinema.war "$CATALINA_HOME/webapps/"
    ```
 
-9. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
+11. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
 
 ### Base de données
 

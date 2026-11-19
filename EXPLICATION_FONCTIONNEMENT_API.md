@@ -25,8 +25,9 @@ Le chemin complet dépend du contexte de déploiement. Dans le WAR API, l’URL 
 par exemple être :
 
 ```text
-http://localhost:8081/cynemma-api/api/trailer?film=Interstellar
+http://localhost:8080/cynemma-api/api/trailer?film=Interstellar
 ```
+(ou sur le port `8081` si une seconde instance Tomcat est dédiée à l'API).
 
 L’application principale conserve aussi `/api/trailer` comme relais HTTP afin
 de maintenir son URL historique. Le nom exact de la route reste
@@ -81,8 +82,8 @@ TmdbCacheDAO.findByFilmTitle()
 7. Le DAO lit aussi `cached_at`. Une clé trouvée est conservée 90 jours ; un
    résultat négatif (clé `NULL`) est conservé 7 jours. Une entrée expirée est
    traitée comme un cache miss.
-8. En cas d’absence dans le cache, le service récupère la clé TMDB dans la
-   variable d’environnement `TMDB_API_KEY` du processus API.
+8. En cas d’absence dans le cache, le service récupère la clé TMDB via
+   `LocalConfiguration` (variable `TMDB_API_KEY`, propriété JVM ou fichier `cynemma.env`).
 9. Il envoie une requête TMDB de recherche par titre, ajoute le filtre d’année
    si `year` est fourni, puis prend l’identifiant du premier résultat.
 10. Avec cet identifiant, il demande les vidéos du film en français, puis en
@@ -420,9 +421,11 @@ Le `web.xml` de l'API déclare une référence `jdbc/cynema` de type
 Servlet du POM est 6.1. Le code source ici ne permet pas de confirmer à lui
 seul la compatibilité effective du conteneur choisi avec cette combinaison.
 
-Le service ne lit aucun fichier `.env` ou fichier de propriétés. Il lit
-exclusivement la variable d’environnement `TMDB_API_KEY` du processus API.
-Cette variable est lue à la demande : son absence ne bloque pas le démarrage ni
+Le service résout la configuration via la classe `LocalConfiguration` : il lit en
+priorité la variable d’environnement `TMDB_API_KEY`, puis la propriété système JVM
+du même nom, et enfin le fichier local `.local-secrets/cynemma.env` (ou
+`${catalina.base}/conf/cynemma.env` sous Tomcat).
+Cette clé est lue à la demande : son absence ne bloque pas le démarrage ni
 la vérification de santé MySQL. Un cache hit pour une bande-annonce peut être
 servi sans clé ; un endpoint nécessitant un appel TMDB répond HTTP 503 tant que
 la clé n'est pas configurée.
@@ -792,13 +795,16 @@ car l’entité `Film` n’a pas de colonne correspondante.
    puis en anglais et enregistrer l’identifiant et la clé (ou une clé nulle)
    dans `tmdb_cache` ;
 5. télécharge l’affiche depuis le serveur d’images TMDB, vérifie son type,
-   sa taille et ses dimensions, puis la convertit en PNG sous `image/` ;
-6. crée une entité `Film` et la persiste en réutilisant `FilmDAO.create(...)`.
+   sa taille et ses dimensions via `PosterStorage`, puis l'enregistre dans le
+   répertoire de stockage externe configuré (par défaut
+   `${catalina.base}/cynemma-images`, servi par `PosterImageServlet`) ;
+6. crée une entité `Film` avec son identifiant `tmdb_id` et la persiste en
+   réutilisant `FilmDAO.create(...)`.
 
-L’identifiant TMDB n’est pas ajouté à l’entité ni à la table `films` : il est
-conservé avec la clé de bande-annonce dans `tmdb_cache`, associée au titre
-validé. Le cache actuel ayant le titre comme clé primaire, il ne peut pas
-représenter plusieurs identifiants TMDB pour des films portant le même titre.
+L’identifiant TMDB est conservé à la fois dans l'entité et la table `films`
+(colonne `tmdb_id` avec contrainte d'unicité `uq_films_tmdb_id` garantissant
+l'idempotence des imports), et dans `tmdb_cache` associé au titre et à la clé
+de bande-annonce.
 
 La création manuelle reste un parcours distinct : la servlet
 `CreatFilmServlet` et sa page `CrerFilm.jsp` ne sont pas remplacées. Elles
