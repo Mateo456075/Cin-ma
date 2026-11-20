@@ -48,6 +48,13 @@
       <version>20240303</version>
     </dependency>
 
+    <!-- Cynemma API Client SDK JAR -->
+    <dependency>
+      <groupId>fr.turgot</groupId>
+      <artifactId>cynemma-api-client</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+
     <!-- Servlet API (Version 6.1.0) -->
     <dependency>
       <groupId>jakarta.servlet</groupId>

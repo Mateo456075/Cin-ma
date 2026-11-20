@@ -8,7 +8,7 @@
             <p class="eyebrow">Cynemma · Votre cinéma</p>
             <h1>Les histoires prennent vie dans le noir.</h1>
             <p class="hero-description">Découvrez les films à l'affiche et choisissez votre prochaine séance. L'expérience commence ici.</p>
-            <a href="${pageContext.request.contextPath}/films" class="btn">Parcourir les films</a>
+            <a href="#films" class="btn">Parcourir les films</a>
         </div>
         <div class="hero-visual" aria-hidden="true">
             <div class="featured-poster-wrapper">
@@ -38,7 +38,7 @@
         </div>
     </section>
 
-    <section id="catalogue" class="catalogue-section" aria-labelledby="catalogue-title">
+    <section id="films" class="catalogue-section" aria-labelledby="catalogue-title">
         <div class="section-heading">
             <div>
                 <p class="eyebrow">À découvrir</p>

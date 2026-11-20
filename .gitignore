@@ -34,6 +34,8 @@ __pycache__/
 # Configurations locales de l'éditeur (optionnel mais recommandé)
 .vscode/
 .continue/
+.agents/
+.github/
 
 # Fichiers système macOS
 .DS_Store
@@ -58,3 +60,7 @@ __pycache__/
 *.p12
 *.jks
 *.keystore
+._target/
+sync_Kanboard.py
+kanboard_backup_Cinema _*cynemma/kanboard_backup_*.json
+cynemma/kanboard_backup*

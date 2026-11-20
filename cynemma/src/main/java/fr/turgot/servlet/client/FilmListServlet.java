@@ -23,7 +23,7 @@ public class FilmListServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         Utilisateur user = (Utilisateur) request.getSession().getAttribute("usere");
-        if (user == null || !"EMPLOYE".equalsIgnoreCase(user.getTypeUtilisateur())) {
+        if (user == null || !"U".equalsIgnoreCase(user.getTypeUtilisateur())) {
             response.sendRedirect(request.getContextPath() + "/index.jsp");
             return;
         }
