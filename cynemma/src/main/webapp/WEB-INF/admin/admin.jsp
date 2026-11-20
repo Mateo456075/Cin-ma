@@ -3,12 +3,22 @@
 <c:set var="pageTitle" value="Administration" scope="request" />
 <jsp:include page="/WEB-INF/includes/header.jsp" />
 
-<main class="page-content" id="main-content">
-    <h1>Bienvenue <c:out value="${sessionScope.usere.login}" />, sur la page d'administration</h1>
+<main class="page-content admin-main" id="main-content">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Tableau de bord</p>
+            <h1>Bienvenue, <c:out value="${sessionScope.usere.login}" /></h1>
+        </div>
+        <p class="section-description">Espace d'administration du cinéma</p>
+    </div>
 
-    <section class="card">
-        <h2>Liste des utilisateurs inscrits</h2>
-        <div class="table-container" role="region" aria-label="Comptes utilisateurs, défilement horizontal possible" tabindex="0">
+    <section class="card" style="margin-bottom: var(--space-6);">
+        
+        <div class="section-heading">
+            <h2>Liste des utilisateurs inscrits</h2>
+        </div>
+        
+        <div class="table-container" role="region" aria-label="Comptes utilisateurs" tabindex="0">
             <table>
                 <caption class="sr-only">Comptes utilisateurs</caption>
                 <thead>
@@ -60,7 +70,7 @@
     <section class="card">
         <h2>Liste des salles de cinéma</h2>
         <p class="actions">
-            <a class="btn" href="${pageContext.request.contextPath}/creerSalle">+ Ajouter une salle</a>
+            <a class="btn" href="${pageContext.request.contextPath}/creersalle">+ Ajouter une salle</a>
         </p>
         <div class="table-container" role="region" aria-label="Salles de cinéma, défilement horizontal possible" tabindex="0">
             <table>

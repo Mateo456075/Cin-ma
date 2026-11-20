@@ -80,13 +80,25 @@ CREATE TABLE sieges (
 
 CREATE TABLE films (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    tmdb_id INT NULL,
     titre VARCHAR(255) NOT NULL,
     duree_minutes INT NOT NULL,
     realisateur VARCHAR(255) NOT NULL,
     annee INT NOT NULL,
     genre VARCHAR(100) NOT NULL,
     affiche VARCHAR(255) NOT NULL,
+    CONSTRAINT uq_films_tmdb_id UNIQUE (tmdb_id),
     CONSTRAINT chk_films_duree CHECK (duree_minutes > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE tmdb_cache (
+    film_title VARCHAR(255) NOT NULL,
+    tmdb_id INT NULL,
+    trailer_key VARCHAR(64) NULL,
+    cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (film_title),
+    CONSTRAINT chk_tmdb_cache_id CHECK (tmdb_id IS NULL OR tmdb_id > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE seances (
@@ -135,3 +147,9 @@ CREATE TABLE billets (
     CONSTRAINT fk_billets_siege
         FOREIGN KEY (siege_id) REFERENCES sieges(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT DELAYED IGNORE INTO `utilisateurs` (`id`, `nom`, `email`, `mot_de_passe`, `login`, `type_utilisateur`) VALUES
+(2, 'mateo', 'mateo@icloud.fr', '$2a$10$pr2HN2P.ha/.kkqzmo7VSObeoY5vA3icMGx2AtjOtGbWYDJrYZUQi', 'let', 'CLIENT'),
+(3, 'daniel', 'Mateo@ivlourd.com', '$2a$10$iz2dyIWZqkn1htND08kK..1UxKbjp340DtgPqPyQGU6HEF1ntgtr2', 'mateo.martinez', 'EMPLOYE'),
+(5, 'aaa', 'MMM@MMMM.mm', '$2a$10$5EkxJM4BIbTcEWC78PQgjObo8mk0jzt/WKwBVRS43bs9xl5sqXcsO', 'aaa', 'ADMINISTRATEUR'),
+(7, 'Séb', 'sluu@gmail.com', '$2a$10$nXLolbmoysSQCG0gG9KHV.nP6SsCSogxjMBbXmcJgFfoljGK40iBu', 'sluu', 'CLIENT');

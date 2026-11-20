@@ -15,7 +15,15 @@ import jakarta.servlet.http.HttpServletResponse;
 @WebServlet(name = "/EditFilmServlet", value = "/modifierFilm")
 public class EditFilmServlet extends HttpServlet {
 
-    private final FilmDAO filmDAO = new FilmDAO();
+    private final FilmDAO filmDAO;
+
+    public EditFilmServlet() {
+        this(new FilmDAO());
+    }
+
+    EditFilmServlet(FilmDAO filmDAO) {
+        this.filmDAO = filmDAO;
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -55,22 +63,32 @@ public class EditFilmServlet extends HttpServlet {
             return;
         }
 
+        int id;
+        int annee;
+        int temps;
         try {
-            int id = Integer.parseInt(request.getParameter("id"));
-            String titre = request.getParameter("titre");
-            String realisateur = request.getParameter("realisateur");
-            int annee = Integer.parseInt(request.getParameter("annee"));
-            String genre = request.getParameter("genre");
-            int temps = Integer.parseInt(request.getParameter("temps"));
-            String affiche = request.getParameter("ancienneAffiche");
-
-            Film film = new Film(titre, realisateur, annee, genre, affiche, temps);
-            film.setId(id); // L'ID est indispensable pour que la mise à jour (merge) fonctionne
-            filmDAO.update(film);
-        } catch (Exception e) {
-            e.printStackTrace();
+            id = Integer.parseInt(request.getParameter("id"));
+            annee = Integer.parseInt(request.getParameter("annee"));
+            temps = Integer.parseInt(request.getParameter("temps"));
+        } catch (NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Identifiant, année ou durée invalide.");
+            return;
         }
-        
+
+        Film film = filmDAO.getFilmById(id);
+        if (film == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Film introuvable.");
+            return;
+        }
+        film.setTitre(request.getParameter("titre"));
+        film.setRealisateur(request.getParameter("realisateur"));
+        film.setAnnee(annee);
+        film.setGenre(request.getParameter("genre"));
+        film.setDureeMinutes(temps);
+        film.setAffiche(request.getParameter("ancienneAffiche"));
+        if (!filmDAO.update(film)) {
+            throw new ServletException("Impossible de modifier le film.");
+        }
         response.sendRedirect(request.getContextPath() + "/listeFilms");
     }
 }

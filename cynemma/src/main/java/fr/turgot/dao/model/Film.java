@@ -7,12 +7,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "films")
+@Table(name = "films", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_films_tmdb_id", columnNames = "tmdb_id")
+})
 public class Film {
 
     @Id
@@ -34,6 +37,9 @@ public class Film {
 
     @Column(name = "affiche", nullable = false, length = 255)
     private String affiche;
+
+    @Column(name = "tmdb_id")
+    private Integer tmdbId;
 
     @Column(name = "duree_minutes", nullable = false)
     private int dureeMinutes;
@@ -70,6 +76,9 @@ public class Film {
 
     public String getAffiche() { return affiche; }
     public void setAffiche(String affiche) { this.affiche = affiche; }
+
+    public Integer getTmdbId() { return tmdbId; }
+    public void setTmdbId(Integer tmdbId) { this.tmdbId = tmdbId; }
 
     public int getDureeMinutes() { return dureeMinutes; }
     public void setDureeMinutes(int dureeMinutes) { this.dureeMinutes = dureeMinutes; }

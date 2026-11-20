@@ -3,7 +3,7 @@
 
 # Log file
 *.log
-
+logs/
 # BlueJ files
 *.ctxt
 
@@ -40,5 +40,21 @@ __pycache__/
 .AppleDouble
 .LSOverride
 ._*
+._.*
 .Spotlight-V100
 .Trashes
+
+# Secrets et configurations locales de developpement
+.local-secrets/
+.secrets/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pk8
+*.p8
+*.der
+*.p12
+*.jks
+*.keystore

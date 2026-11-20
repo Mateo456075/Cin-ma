@@ -97,6 +97,6 @@ public class Seance {
     public List<Billet> getBilletsVendus() { return billetsVendus; }
     public void setBilletsVendus(List<Billet> billetsVendus) { this.billetsVendus = billetsVendus; }
 
-    public String getDate() { return dateHeure == null ? null : LocalDate.from(dateHeure).toString(); }
-    public String getHoraire() { return dateHeure == null ? null : LocalTime.from(dateHeure).toString(); }
+    public String getDate() { return dateHeure == null ? null : dateHeure.toLocalDate().toString(); }
+    public String getHoraire() { return dateHeure == null ? null : dateHeure.toLocalTime().toString(); }
 }

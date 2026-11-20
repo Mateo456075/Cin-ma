@@ -39,11 +39,12 @@
                             <li><a href="${pageContext.request.contextPath}/creerfilm">Créer un film</a></li>
                             <li><a href="${pageContext.request.contextPath}/employe/listeSeances">Séances</a></li>
                             <li><a href="${pageContext.request.contextPath}/listeFilms">Films</a></li>
+                            <li><a href="${pageContext.request.contextPath}/catalogueTmdb">Films suggérés par TMDB</a></li>
                         </c:if>
 
                         <%-- Menu Spécifique ADMINISTRATEUR --%>
                         <c:if test="${sessionScope.usere.typeUtilisateur == 'ADMINISTRATEUR'}">
-                            <li><a href="${pageContext.request.contextPath}/creerSalle">Créer une salle</a></li>
+                            <li><a href="${pageContext.request.contextPath}/creersalle">Créer une salle</a></li>
                             <li><a href="${pageContext.request.contextPath}/admins">Administration</a></li>
                         </c:if>
 

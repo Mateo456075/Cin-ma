@@ -12,6 +12,17 @@
         <a class="btn" href="${pageContext.request.contextPath}/creerfilm">Ajouter un film</a>
     </div>
 
+    <c:if test="${param['import'] == 'created'}">
+        <p class="success-message" role="status">Le film a été ajouté au catalogue.</p>
+    </c:if>
+    <c:if test="${param['import'] == 'exists'}">
+        <p class="success-message" role="status">Ce film TMDB est déjà présent dans le catalogue.</p>
+    </c:if>
+    <c:if test="${param.cache == 'unavailable'}">
+        <p class="error-message" role="alert">
+            Le film est enregistré, mais le cache de bande-annonce n'a pas pu être actualisé.
+        </p>
+    </c:if>
     <c:if test="${param.error == 'seance'}">
         <p class="error-message" role="alert">Impossible de supprimer ce film car des séances sont encore programmées pour celui-ci.</p>
     </c:if>
