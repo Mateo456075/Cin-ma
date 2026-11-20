@@ -104,8 +104,8 @@ l'endpoint santé.
   comporte `tmdbId`, `title`, `overview`, `releaseDate`, `posterPath`,
   `posterUrl`, `runtimeMinutes`, `director` et `genres`.
 - **Erreurs :** 401 jeton absent/invalide/expiré ; 403 rôle manquant ; 503
-  vérificateur de jeton non configuré ou requête interrompue ; 502 erreur TMDB ;
-  504 expiration du délai TMDB ; 500 erreur interne.
+  vérificateur de jeton ou clé TMDB non configuré, ou requête interrompue ;
+  502 erreur TMDB ; 504 expiration du délai TMDB ; 500 erreur interne.
 - **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
 
 ### Détails d'un film — `GET /api/internal/tmdb/movies/{tmdbId}`
@@ -114,7 +114,8 @@ l'endpoint santé.
 - **Paramètre de chemin :** `tmdbId`, entier positif.
 - **Succès — HTTP 200 :** objet film avec les champs décrits pour
   `/now-playing`.
-- **Erreurs :** 400 identifiant hors limite ; 401/403/503 contrôle d'accès ;
+- **Erreurs :** 400 identifiant hors limite ; 401/403 contrôle d'accès ;
+  503 vérificateur de jeton ou clé TMDB non configuré, ou requête interrompue ;
   502 erreur TMDB ; 504 délai dépassé ; 404 route inconnue ; 500 erreur interne.
 - **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
 
@@ -124,8 +125,9 @@ l'endpoint santé.
 - **Paramètre de chemin :** `tmdbId`, entier positif.
 - **Succès — HTTP 200 :** contenu binaire `image/jpeg` ou `image/png`, déterminé
   à partir de l'extension du chemin TMDB.
-- **Erreurs :** 401/403/503 contrôle d'accès ; 404 si aucune affiche ou route
-  inconnue ; 502 erreur TMDB ; 504 délai dépassé ; 500 erreur interne.
+- **Erreurs :** 401/403 contrôle d'accès ; 404 si aucune affiche ou route
+  inconnue ; 503 vérificateur de jeton ou clé TMDB non configuré, ou requête
+  interrompue ; 502 erreur TMDB ; 504 délai dépassé ; 500 erreur interne.
 - **Remarque :** le nom de fichier ou un en-tête `Content-Disposition` n'est
   pas défini par cette servlet.
 - **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
@@ -138,10 +140,11 @@ l'endpoint santé.
 - **Body :** objet JSON avec `title` (chaîne utilisée pour la recherche/cache).
 - **Succès — HTTP 200 :** `{"available":true}` si une clé existe, sinon
   `{"available":false}`.
-- **Erreurs :** 400 identifiant ou titre invalide ; 401/403 contrôle d'accès ;
-  413 corps supérieur à 4096 octets ; 415 type de contenu incorrect ; 500
-  erreur SQL, JSON mal formé ou erreur interne ; 502 erreur TMDB ; 503
-  vérificateur de jeton non configuré ou requête interrompue ; 504 délai dépassé.
+- **Erreurs :** 400 identifiant/titre invalide ou corps JSON mal formé ; 401/403
+  contrôle d'accès ; 413 corps supérieur à 4096 octets ; 415 type de contenu
+  incorrect ; 500 erreur SQL ou erreur interne ; 502 erreur TMDB ; 503
+  vérificateur de jeton ou clé TMDB non configuré, ou requête interrompue ;
+  504 délai dépassé.
 - **Source :** [`InternalTmdbServlet`](../../API/src/main/java/fr/turgot/api/controller/InternalTmdbServlet.java).
 
 Le format détaillé des schémas et réponses est aussi disponible dans la
@@ -239,12 +242,13 @@ utilise `multipart/form-data`.
 
 - **Accès :** aucune vérification de session ou de rôle visible.
 - **Paramètre de requête :** `path`.
-- **Traitement :** si `path` est non vide, construit
-  `LinkHelper.JSP_ROOT + path + ".jsp"` et tente un transfert interne.
-- **Réponse :** JSP ou erreur de dispatcher ; si `path` est absent/vide,
-  `sendError(404)`.
-- **Remarque :** aucune liste blanche de chemins n'est visible dans cette
-  servlet. Les cibles effectivement accessibles dépendent du conteneur.
+- **Traitement :** accepte uniquement `Authentification`, `Creat` et
+  `visiteur/visiteur`, puis transfère vers
+  `LinkHelper.JSP_ROOT + path + ".jsp"`.
+- **Réponse :** transfert vers la JSP autorisée ; HTTP 404 si le paramètre est
+  absent ou si sa valeur ne figure pas dans la liste blanche.
+- **Remarque :** la route est publique, mais elle ne permet pas de choisir
+  librement une JSP ni d'accéder aux vues protégées par ce mécanisme.
 - **Source :** [`PageServlet`](../../cynemma/src/main/java/fr/turgot/utils/PageServlet.java).
 
 ### Liste des séances employé — `GET /employe/listeSeances`
@@ -356,10 +360,12 @@ utilise `multipart/form-data`.
 - **Accès :** rôle `EMPLOYE` ; `csrfToken` obligatoire.
 - **Paramètres de formulaire :** `csrfToken`, `id`, `titre`, `realisateur`,
   `annee`, `genre`, `temps`, `ancienneAffiche`.
-- **Traitement :** construit un `Film`, appelle le DAO de mise à jour, puis
-  redirige vers `/listeFilms`.
-- **Remarque :** les exceptions de conversion sont capturées sans réponse
-  d'erreur spécifique ; la servlet redirige ensuite comme après le traitement.
+- **Traitement :** charge le film par son identifiant, modifie ses champs sans
+  remplacer l'entité (ce qui préserve notamment son `tmdbId`), appelle le DAO
+  de mise à jour, puis redirige vers `/listeFilms`.
+- **Erreurs :** HTTP 400 si l'identifiant, l'année ou la durée ne sont pas
+  numériques ; HTTP 404 si le film n'existe pas ; une mise à jour DAO
+  infructueuse provoque une `ServletException`.
 - **Source :** [`EditFilmServlet`](../../cynemma/src/main/java/fr/turgot/servlet/employe/EditFilmServlet.java).
 
 ### Suppression d'un film — `POST /supprimerFilm`
@@ -395,6 +401,9 @@ utilise `multipart/form-data`.
   et [`SeanceDAO`](../../cynemma/src/main/java/fr/turgot/dao/SeanceDAO.java).
 
 ### Import assisté TMDB — `GET, POST /employe/tmdb/catalogue`
+
+Le même servlet accepte aussi le chemin historique `GET, POST /catalogueTmdb`.
+Les deux chemins ont le même contrôle d'accès et le même comportement.
 
 **GET**
 
@@ -526,7 +535,7 @@ utilise `multipart/form-data`.
 | Catégorie | Routes |
 |---|---|
 | Public et compte | `/accueil`, `/page`, `/connexion`, `/nouveaucompte`, `/changerMotDePasse`, `/deconnexion` |
-| Catalogue et programmation | `/listeFilms`, `/creerfilm`, `/image/{nom}`, `/modifierFilm`, `/supprimerFilm`, `/nouvelleSeance`, `/employe/listeSeances`, `/employe/tmdb/catalogue` |
+| Catalogue et programmation | `/listeFilms`, `/creerfilm`, `/image/{nom}`, `/modifierFilm`, `/supprimerFilm`, `/nouvelleSeance`, `/employe/listeSeances`, `/employe/tmdb/catalogue` (alias `/catalogueTmdb`) |
 | Client et réservation | `/client`, `/client/listeSeances`, `/billetterie` |
 | Administration | `/admins`, `/creersalle`, `/gererSieges`, `/supprimerUtilisateur`, `/modifierrole` |
 | JSON | `/api/trailer` |

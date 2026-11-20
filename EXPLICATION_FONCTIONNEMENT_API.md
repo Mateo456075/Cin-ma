@@ -10,7 +10,8 @@ valeurs de vidéo sont donc des exemples, pas des résultats capturés en direct
 
 ## 1. Résumé de l’API
 
-L’application expose une route qui reçoit le titre d’un film, cherche une
+Le WAR API expose plusieurs endpoints JSON. Cette section se concentre sur
+`GET /api/trailer` : cette route reçoit le titre d’un film, cherche une
 bande-annonce YouTube avec TheMovieDB (TMDB), puis renvoie une réponse JSON.
 Avant de contacter TMDB, elle cherche le résultat dans la table locale
 `tmdb_cache`.
@@ -532,8 +533,9 @@ journalisé, pas envoyé au client.
 }
 ```
 
-Cette réponse couvre notamment les erreurs SQL et une configuration manquante
-de la clé TMDB ou de la `DataSource`.
+Cette réponse couvre notamment les erreurs SQL/JNDI et les autres erreurs
+internes. Une clé TMDB absente ou remplacée par un placeholder donne HTTP 503,
+avec un message indiquant que le service n'est pas configuré.
 
 ## 10. Gestion réelle des erreurs et limites
 
@@ -544,7 +546,7 @@ de la clé TMDB ou de la `DataSource`.
 | Paramètre `year` non numérique ou hors plage 1888–9999 | La servlet ou le service rejette la requête avec HTTP 400. |
 | TMDB ne retourne aucun film | Le service enregistre un résultat négatif dans le cache et renvoie un `Optional` vide ; la servlet répond 404. |
 | Film présent mais aucune bande-annonce YouTube adéquate | Le service essaie d’abord `fr-FR`, puis `en-US`; si les deux échouent, il met en cache une clé nulle et la servlet répond 404. |
-| Clé TMDB absente | `getApiKey()` lève `IllegalStateException` lors d’un cache miss ; la servlet répond 500 et journalise l’exception. |
+| Clé TMDB absente ou remplacée par un placeholder | `getApiKey()` lève `TmdbConfigurationException` lors d’un cache miss ; la servlet répond 503 et journalise l’exception. |
 | Clé TMDB invalide | TMDB renvoie un statut non 2xx ; la servlet répond 502. Le code ne traduit pas spécifiquement une erreur d’authentification en 401/403. |
 | Limite de requêtes TMDB ou autre statut non 2xx | La servlet répond 502. Il n’y a pas de traitement spécifique du statut 429. |
 | Délai d’attente TMDB dépassé | La servlet répond 504. |
@@ -575,9 +577,11 @@ expirées restent dans la table jusqu’à leur remplacement.
 - Aucun DTO autonome de réponse REST n’a été trouvé. La servlet construit le
   JSON avec `JSONObject`. `CacheEntry` est un record interne au DAO, utilisé
   pour transporter une ligne du cache.
-- Aucun appel réel à TMDB n’a été effectué pour ce document. Les exemples de
-  JSON montrent le format construit par le code, pas un résultat observé en
-  production.
+- Le 20 novembre 2026, une vérification manuelle de
+  `GET /cynemma-api/api/trailer?film=Interstellar&year=2014` a renvoyé HTTP 200.
+  Elle confirme ce parcours public dans l'environnement local à cet instant,
+  mais ne valide ni tous les résultats TMDB ni les routes internes authentifiées
+  et l'import complet.
 
 ## 12. Notions à connaître pour l’oral de BTS SIO SLAM
 
@@ -755,6 +759,7 @@ les endpoints TMDB internes du WAR API avec un JWT signé côté serveur.
 ### Routes et contrôles d’accès
 
 - `GET /employe/tmdb/catalogue` affiche la première page de suggestions TMDB.
+  Le chemin historique `/catalogueTmdb` est également mappé sur cette servlet.
 - `GET /employe/tmdb/catalogue?tmdbId=...` charge les détails et ouvre l’écran
   de relecture.
 - `POST /employe/tmdb/catalogue` valide les champs et enregistre le film.
@@ -791,15 +796,21 @@ car l’entité `Film` n’a pas de colonne correspondante.
 1. revérifie le rôle et le jeton CSRF ;
 2. valide les champs obligatoires et leurs limites ;
 3. recharge les détails TMDB à partir de l’identifiant envoyé ;
-4. appelle `getTrailerKeyForMovie(tmdbId, titre)` pour rechercher en français
-   puis en anglais et enregistrer l’identifiant et la clé (ou une clé nulle)
-   dans `tmdb_cache` ;
-5. télécharge l’affiche depuis le serveur d’images TMDB, vérifie son type,
+4. vérifie si le film existe déjà avec `FilmDAO.getFilmByTmdbId(tmdbId)` ;
+5. télécharge l’affiche via la route interne de l’API, vérifie son type,
    sa taille et ses dimensions via `PosterStorage`, puis l'enregistre dans le
    répertoire de stockage externe configuré (par défaut
    `${catalina.base}/cynemma-images`, servi par `PosterImageServlet`) ;
 6. crée une entité `Film` avec son identifiant `tmdb_id` et la persiste en
-   réutilisant `FilmDAO.create(...)`.
+   réutilisant `FilmDAO.create(...)` ;
+7. après une persistance réussie, demande à l’API indépendante d’actualiser le
+   cache de bande-annonce (`tmdb_cache`). Cette mise à jour est distincte de la
+   transaction de création du film : si elle échoue, le film reste enregistré
+   et l’interface signale que le cache n’a pas été actualisé.
+
+Si la création échoue après l’enregistrement de l’image, le contrôleur supprime
+l’affiche orpheline. En cas de doublon créé concurremment, il supprime aussi
+l’image téléchargée et affiche le résultat « déjà présent ».
 
 L’identifiant TMDB est conservé à la fois dans l'entité et la table `films`
 (colonne `tmdb_id` avec contrainte d'unicité `uq_films_tmdb_id` garantissant

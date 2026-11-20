@@ -190,10 +190,15 @@ le chemin historique de l'application principale, qui relaie la requête.
 
 ## Tests
 
-Depuis `API/`, exécuter `mvn test`. Depuis `cynemma/`, exécuter
-`mvn test`. Les tests présents couvrent le mapping et les validations initiales
-de `GET /api/trailer`; aucun test d'intégration n'exerce encore les deux
-conteneurs, MySQL ou TMDB.
+Depuis `API/`, exécuter `mvn test`. La suite comprend des tests unitaires des
+servlets (validation des paramètres, JSON et routes internes), de la validation
+JWT, de la configuration, du DAO de cache sans DataSource disponible et du
+service TMDB pour la validation de la clé. Elle ne contacte pas TMDB et ne
+valide pas une base MySQL réelle. Aucun test d'intégration ne couvre le
+déploiement des deux WAR ni le parcours complet d'import.
+
+Depuis `cynemma/`, `mvn test` exécute les tests de l'application principale,
+notamment ceux du client API, du stockage des affiches et du parcours d'import.
 
 ## Documentation
 

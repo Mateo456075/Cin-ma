@@ -16,7 +16,7 @@ qui rendent des JSP ou traitent les formulaires de l'application principale.
 | Catégorie | Nombre | Nature |
 |---|---:|---|
 | Endpoints JSON du WAR `API/` | 6 | Bande-annonce, santé et intégration TMDB interne |
-| Routes MVC Servlet du principal | 22 | Pages, formulaires, navigation et opérations de back-office |
+| Servlets MVC du principal | 22 (23 motifs d'URL) | Pages, formulaires, navigation et opérations de back-office |
 | Relais historique du principal | 1 | `GET /api/trailer`, relayé vers le WAR API |
 
 Les routes MVC ne constituent pas une API REST JSON : leurs POST reçoivent des

@@ -307,10 +307,13 @@ Aucun compte de démonstration ni identifiant par défaut n’est fourni dans ce
 
 ## Tests et limites connues
 
-Des tests unitaires ciblés vérifient le mapping/validation de la bande-annonce,
-la signature et validation JWT ainsi que l'exigence HTTPS hors boucle locale.
-Aucun test d’intégration couvrant les deux conteneurs, MySQL ou les appels TMDB
-n’est présent.
+Les tests unitaires couvrent notamment les paramètres de l'API, les JWT,
+l'exigence HTTPS hors boucle locale, le stockage d'affiches, le parcours
+d'import TMDB et plusieurs règles métier. Le 20 novembre 2026, les suites
+exécutées ont compté 42 tests dans `cynemma/` et 25 dans `API/`, sans échec.
+Aucun test automatisé d'intégration ne couvre les deux conteneurs ni une
+persistance JPA/MySQL réelle ; les tests unitaires ne remplacent pas une
+validation complète du déploiement.
 
 Commandes disponibles :
 

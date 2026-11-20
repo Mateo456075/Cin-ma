@@ -8,14 +8,14 @@ Les erreurs JSON utilisent actuellement la propriété `erreur`.
 |---:|---|---|
 | 400 | `film` absent/blanc, année non numérique ou valeur rejetée par le service | `{"erreur":"Paramètre 'film' manquant"}` |
 | 404 | Aucune bande-annonce disponible ou aucun résultat exploitable | `{"erreur":"Aucune bande-annonce disponible"}` |
-| 500 | Erreur SQL/JNDI ou configuration de clé TMDB manquante | `{"erreur":"Erreur interne"}` |
+| 500 | Erreur SQL/JNDI ou erreur interne | `{"erreur":"Erreur interne"}` |
 | 502 | Erreur HTTP/réseau TMDB ou réponse JSON TMDB invalide | `{"erreur":"Le service TMDB est temporairement indisponible"}` |
-| 503 | Appel interrompu | `{"erreur":"La recherche de bande-annonce a été interrompue"}` |
+| 503 | Clé TMDB absente/mal configurée lors d'un cache miss, ou appel interrompu | Ex. `{"erreur":"Le service des bandes-annonces n'est pas configuré"}` |
 | 504 | Délai de réponse TMDB dépassé | `{"erreur":"Le service TMDB est temporairement indisponible"}` |
 
 Le succès renvoie HTTP 200 et un objet comportant `key`, `watchUrl` et
 `embedUrl`. Les exemples complets figurent dans la
-[référence des endpoints](Endpoints.md#api-json).
+[référence des endpoints](Endpoints.md#api-json--war-api).
 
 Le paramètre `year` est converti en entier par la servlet. L'année hors de
 l'intervalle de validation du service est rejetée comme entrée invalide. Le
@@ -36,19 +36,24 @@ Ces routes ne renvoient pas de format d'erreur JSON commun :
 
 ## Incohérences et limites constatées dans le code
 
-1. **Ce n'est pas une API REST homogène.** Seul `/api/trailer` renvoie JSON ; les
-   autres opérations HTTP sont des routes d'interface MVC.
+1. **Les deux WAR n'exposent pas le même type de routes.** Dans l'application
+   principale, `/api/trailer` est un relais JSON et les autres routes décrites
+   ici servent principalement l'interface MVC. Le WAR `API/` expose aussi
+   `/api/health` et les routes JSON internes `/api/internal/tmdb/*` ; le
+   téléchargement d'affiche de cette API renvoie du contenu binaire.
 2. **Authentification non uniforme.** Certaines routes contrôlent session et
    rôle, d'autres sont publiques. `/api/trailer` n'exige pas de session.
 3. **La déconnexion utilise GET.** `/deconnexion` invalide la session par une
    requête GET.
 4. **La création de compte et la connexion ne vérifient pas de jeton CSRF dans
    leurs servlets.**
-5. **`/page?path=...` transfère vers un chemin JSP construit à partir du
-   paramètre sans contrôle d'accès visible dans cette servlet.** Le détail des
-   cibles effectivement accessibles dépend du conteneur et du dispatcher.
-6. **La mise à jour d'un film réaffiche une redirection même si une exception
-   est interceptée.** Le code ne communique pas un résultat d'échec uniforme.
+5. **`/page?path=...` n'exige pas de session, mais applique une liste blanche.**
+   Seules les vues `Authentification`, `Creat` et `visiteur/visiteur` sont
+   transférées ; les autres valeurs, y compris les vues protégées et les
+   tentatives de traversal, reçoivent HTTP 404.
+6. **La modification d'un film n'a pas de page d'erreur métier uniforme si le
+   DAO échoue.** La servlet lève une `ServletException` au lieu de rediriger
+   vers la liste après un échec de mise à jour.
 7. **La création d'une rangée et de ses sièges s'effectue via plusieurs appels
    DAO distincts.** Le code visible ne les regroupe pas dans une seule
    transaction.
