@@ -6,8 +6,8 @@
    - Le SDK ne dépend ni de l'application web principale `cynemma` (WAR) ni de l'application REST `cynemma-api` (WAR).
    - Il s'agit d'une bibliothèque JAR autonome (`fr.turgot:cynemma-api-client:1.0.0`).
 2. **Utilisation des fonctionnalités natives du JDK 21** :
-   - Java Records pour les DTOs immuables (`TmdbMovie`, `TrailerResponse`, `HealthResponse`, `TrailerCacheRequest`).
-   - `java.net.http.HttpClient` standard pour les requêtes asynchrones et synchrones HTTP/1.1 et HTTP/2.
+   - Java Records pour les DTO immuables (`TmdbMovie`, `TrailerResponse`, `HealthResponse`, `TrailerCacheRequest`).
+   - `java.net.http.HttpClient` standard pour les requêtes HTTP synchrones.
 3. **Séparation Interface / Implémentation** :
    - Exposition d'interfaces publiques de haut niveau (`CynemmaApiClient`, `HealthService`, `TrailerService`, `TmdbService`, `TokenProvider`).
    - Implémentations privées ou de package (`DefaultCynemmaApiClient`, `DefaultHealthService`, `DefaultTrailerService`, `DefaultTmdbService`, `HttpRequestExecutor`).
@@ -75,4 +75,4 @@ sequenceDiagram
 
 ## 4. Intégration dans `cynemma`
 
-Dans l'application principale, la classe `fr.turgot.service.TmdbApiClient` a été refondue en un adaptateur qui encapsule `CynemmaApiClient`. Elle délègue intégralement le transport, l'authentification et le typage au SDK, tout en garantissant 100% de rétro-compatibilité sans régression sur les servlets `TmdbCatalogImportServlet`, `TrailerServlet` et leurs tests unitaires.
+Dans l'application principale, `fr.turgot.service.TmdbApiClient` adapte les appels du parcours d'import au client partagé. Les servlets conservent la validation de session, rôle et CSRF; le client SDK gère le transport vers les routes de l'API.

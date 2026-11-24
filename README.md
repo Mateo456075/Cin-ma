@@ -171,7 +171,6 @@ Cin-ma/
 └── cynemma/
     ├── pom.xml
     ├── init_database.sql
-    ├── migrations/              # Migrations SQL de bases déjà créées
     ├── populate_kanboard.py
     └── src/
         ├── main/
@@ -226,17 +225,7 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
 
 3. Configurer les paramètres de connexion à MySQL pour votre environnement dans [persistence.xml](cynemma/src/main/resources/META-INF/persistence.xml). Le fichier contient actuellement une URL locale sur le port `8889` ; adaptez l’URL, l’utilisateur et le mot de passe à votre installation. Ne publiez pas de secrets.
 
-4. Pour une base créée avant l'ajout de l'import TMDB idempotent, exécuter une
-   seule fois la migration
-   [001_add_films_tmdb_id.sql](cynemma/migrations/001_add_films_tmdb_id.sql)
-   avant de déployer le WAR mis à jour. Pour une nouvelle base, le schéma
-   [init_database.sql](cynemma/init_database.sql) inclut déjà cette colonne.
-   Les films préexistants restent avec `tmdb_id = NULL` : la migration ne les
-   associe pas automatiquement à `tmdb_cache`, car cette table est indexée par
-   titre et ne constitue pas une relation fiable. Vérifier manuellement les
-   anciens imports TMDB avant de les réimporter.
-
-5. Configurer le stockage des affiches. Par défaut, elles sont écrites dans
+4. Configurer le stockage des affiches. Par défaut, elles sont écrites dans
    `${catalina.base}/cynemma-images`, hors du WAR et donc conservées lors d'un
    redéploiement. Le processus Tomcat doit pouvoir créer et écrire dans ce
    répertoire. Pour choisir un autre emplacement, définir `CYNEMMA_IMAGE_DIR`
@@ -245,12 +234,12 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
    dans ce répertoire externe avant le prochain nettoyage du WAR ; leurs noms
    relatifs en base restent inchangés.
 
-6. Construire puis déployer le WAR indépendant en suivant le
+5. Construire puis déployer le WAR indépendant en suivant le
    [README de l'API](API/README.md). Seul son processus Java reçoit
    `TMDB_API_KEY` et `CYNEMMA_JWT_PUBLIC_KEY`. Il nécessite une DataSource JNDI
    `java:comp/env/jdbc/cynema` vers la même base que l'application principale.
 
-7. Pour que l'application principale appelle l'API, fournir
+6. Pour que l'application principale appelle l'API, fournir
    `CYNEMMA_API_BASE_URL` (par exemple `http://localhost:8080/cynemma-api` si déployé sur la même instance Tomcat, ou `http://localhost:8081/cynemma-api` en cas d'instance dédiée) et
    `CYNEMMA_JWT_PRIVATE_KEY` au processus Java principal. La clé privée ne doit
    pas être copiée dans le conteneur API ni placée dans le dépôt. La génération
@@ -259,21 +248,21 @@ Les commandes suivantes supposent que Git, Maven, le client MySQL et un conteneu
    le fichier ignoré par Git `.local-secrets/cynemma.env` si le lanceur Tomcat
    ne transmet pas les variables d'environnement.
 
-8. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
+7. Pour envoyer les courriels de confirmation, fournir `SMTP_USERNAME` et `SMTP_PASSWORD` au processus Java. En l’absence de ces variables, la réservation reste enregistrée et l’interface indique que le courriel n’a pas pu être envoyé. Ne placez pas ces secrets dans le dépôt. Si les identifiants précédemment présents dans le code ont été utilisés, révoquez-les et remplacez-les.
 
-9. Construire l’application principale :
+8. Construire l’application principale :
 
    ```bash
    mvn clean package
    ```
 
-10. Déployer `target/cinema.war` dans le répertoire de déploiement du conteneur principal. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
+9. Déployer `target/cinema.war` dans le répertoire de déploiement du conteneur principal. Avec un répertoire Tomcat défini par `CATALINA_HOME` :
 
    ```bash
    cp target/cinema.war "$CATALINA_HOME/webapps/"
    ```
 
-11. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
+10. Démarrer le conteneur selon son installation. Avec Tomcat, l’application est normalement accessible à `http://localhost:8080/cinema/`. La page d’accueil déclarée par l’application est `/accueil`.
 
 ### Base de données
 

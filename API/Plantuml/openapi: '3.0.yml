@@ -1,0 +1,300 @@
+openapi: '3.0.3'
+info:
+  title: Cynemma API
+  description: >
+    API REST de Cynemma : état du service, bandes-annonces et accès interne à TMDB.
+    Toutes les erreurs renvoient un objet JSON de la forme {"erreur": "message"}.
+  version: '1.0'
+servers:
+  - url: http://localhost:8080/cynemma-api
+    description: Tomcat local (adresse à adapter)
+tags:
+  - name: Santé
+  - name: Bandes-annonces
+  - name: TMDB interne
+    description: Réservé aux employés (jeton JWT avec le rôle employé).
+
+paths:
+  /api/health:
+    get:
+      tags: [Santé]
+      summary: Vérifier que l'API et sa base de données répondent
+      responses:
+        '200':
+          description: API et base de données disponibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example: { status: UP, database: UP }
+        '503':
+          description: Base de données indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example: { status: DOWN, database: DOWN }
+
+  /api/trailer:
+    get:
+      tags: [Bandes-annonces]
+      summary: Trouver la bande-annonce d'un film
+      description: Route publique (aucun jeton demandé).
+      parameters:
+        - name: film
+          in: query
+          required: true
+          description: Titre du film
+          schema: { type: string }
+        - name: year
+          in: query
+          required: false
+          description: Année de sortie (entre 1888 et 9999)
+          schema: { type: integer, minimum: 1888, maximum: 9999 }
+      responses:
+        '200':
+          description: Bande-annonce trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trailer'
+        '400':
+          description: Paramètre 'film' manquant ou 'year' invalide
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '404':
+          description: Aucune bande-annonce disponible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '500':
+          description: Erreur interne
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '502':
+          description: TMDB injoignable ou en erreur
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '503':
+          description: Clé TMDB non configurée, ou recherche interrompue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '504':
+          description: Délai dépassé côté TMDB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+
+  /api/internal/tmdb/now-playing:
+    get:
+      tags: [TMDB interne]
+      summary: Films actuellement à l'affiche
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des films
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/TmdbMovie' }
+        '401': { $ref: '#/components/responses/NonAuthentifie' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '502': { $ref: '#/components/responses/TmdbIndisponible' }
+        '503': { $ref: '#/components/responses/ServiceNonDisponible' }
+        '504': { $ref: '#/components/responses/TmdbIndisponible' }
+
+  /api/internal/tmdb/movies/{tmdbId}:
+    get:
+      tags: [TMDB interne]
+      summary: Détails d'un film
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TmdbId'
+      responses:
+        '200':
+          description: Détails du film
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TmdbMovie' }
+        '400':
+          description: Identifiant TMDB hors limite
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '401': { $ref: '#/components/responses/NonAuthentifie' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404':
+          description: Route introuvable (identifiant non numérique ou nul)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '502': { $ref: '#/components/responses/TmdbIndisponible' }
+        '503': { $ref: '#/components/responses/ServiceNonDisponible' }
+        '504': { $ref: '#/components/responses/TmdbIndisponible' }
+
+  /api/internal/tmdb/movies/{tmdbId}/poster:
+    get:
+      tags: [TMDB interne]
+      summary: Télécharger l'affiche d'un film
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TmdbId'
+      responses:
+        '200':
+          description: Image de l'affiche
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/NonAuthentifie' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404':
+          description: Aucune affiche disponible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '502': { $ref: '#/components/responses/TmdbIndisponible' }
+        '503': { $ref: '#/components/responses/ServiceNonDisponible' }
+        '504': { $ref: '#/components/responses/TmdbIndisponible' }
+
+  /api/internal/tmdb/movies/{tmdbId}/trailer-cache:
+    post:
+      tags: [TMDB interne]
+      summary: Chercher et mettre en cache la bande-annonce d'un film
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TmdbId'
+      requestBody:
+        required: true
+        description: JSON en UTF-8, 4096 octets maximum
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  description: Titre du film
+            example: { title: "Titre du film" }
+      responses:
+        '200':
+          description: Recherche effectuée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                    description: true si une bande-annonce existe
+        '400':
+          description: Identifiant, corps JSON ou champ title invalide
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '401': { $ref: '#/components/responses/NonAuthentifie' }
+        '403': { $ref: '#/components/responses/Interdit' }
+        '404':
+          description: Route introuvable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '413':
+          description: Corps de requête trop volumineux
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '415':
+          description: Content-Type différent de application/json en UTF-8
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '500':
+          description: Erreur interne ou cache impossible à enregistrer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erreur' }
+        '502': { $ref: '#/components/responses/TmdbIndisponible' }
+        '503': { $ref: '#/components/responses/ServiceNonDisponible' }
+        '504': { $ref: '#/components/responses/TmdbIndisponible' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Jeton JWT d'un utilisateur ayant le rôle employé.
+  parameters:
+    TmdbId:
+      name: tmdbId
+      in: path
+      required: true
+      description: Identifiant TMDB du film (entier strictement positif)
+      schema: { type: integer, minimum: 1 }
+  responses:
+    NonAuthentifie:
+      description: Jeton d'accès absent ou invalide
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    Interdit:
+      description: Rôle employé requis
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    ServiceNonDisponible:
+      description: Vérification des jetons ou clé TMDB non configurée, ou recherche interrompue
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    TmdbIndisponible:
+      description: TMDB injoignable (502) ou délai dépassé (504)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+  schemas:
+    Erreur:
+      type: object
+      properties:
+        erreur: { type: string }
+      example: { erreur: "Paramètre 'film' manquant" }
+    Health:
+      type: object
+      properties:
+        status: { type: string, enum: [UP, DOWN] }
+        database: { type: string, enum: [UP, DOWN] }
+    Trailer:
+      type: object
+      properties:
+        key: { type: string, description: Clé de la vidéo YouTube }
+        watchUrl: { type: string, format: uri }
+        embedUrl: { type: string, format: uri }
+    TmdbMovie:
+      type: object
+      properties:
+        tmdbId: { type: integer }
+        title: { type: string }
+        overview: { type: string }
+        releaseDate: { type: string }
+        posterPath: { type: string, nullable: true }
+        posterUrl: { type: string, nullable: true }
+        runtimeMinutes: { type: integer, nullable: true }
+        director: { type: string }
+        genres:
+          type: array
+          items: { type: string }

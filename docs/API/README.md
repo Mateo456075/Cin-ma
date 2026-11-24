@@ -1,13 +1,12 @@
 # Documentation HTTP de Cynemma
 
 Cette documentation décrit les routes présentes dans le code Java actuel. Elle
-distingue l'endpoint JSON consommable comme une API REST des routes MVC Servlet
+distingue les endpoints JSON consommables comme une API REST des routes MVC Servlet
 qui rendent des JSP ou traitent les formulaires de l'application principale.
 
 ## Contenu
 
-- [Spécification OpenAPI 3.0](../../API/Documentation/openapi.yaml)
-- [Vue d'ensemble technique](API-Overview.md)
+- [Spécification OpenAPI 3.1](../../API/Documentation/openapi.yaml)
 - [Référence des routes et endpoints](Endpoints.md)
 - [Erreurs, limites et points à confirmer](Errors.md)
 
@@ -47,6 +46,52 @@ clients existants.
 
 Les exemples de formulaires dans la référence illustrent le format attendu par
 les servlets ; ils ne transforment pas ces routes en endpoints JSON.
+
+## Architecture déployée
+
+Cynemma est composé de deux WAR qui restent intégrés au même produit :
+
+- `cynemma/` est l'application principale Jakarta Servlet/JSP, avec les pages,
+  les sessions, les formulaires MVC, les DAO et la persistance métier JPA.
+- `API/` est un projet Maven autonome qui produit le WAR des routes JSON. Il
+  possède les appels TMDB et le DAO JDBC de `tmdb_cache`.
+
+Les deux conteneurs utilisent la même base MySQL, mais chacun doit configurer sa
+propre DataSource JNDI `java:comp/env/jdbc/cynema`. Le WAR API ne partage pas
+l'EntityManager de l'application principale. Les opérations HTTP entre WAR ne
+font pas partie d'une transaction SQL/JPA distribuée.
+
+```text
+Client web
+  -> Cynemma principal (JSP, MVC, session employé, CSRF)
+       -> /api/trailer (relais HTTP conservant le chemin historique)
+            -> API indépendante
+                 -> TmdbService
+                      -> TmdbCacheDAO / tmdb_cache (JDBC)
+                      -> TMDB (cache miss/expiration)
+
+Import employé
+  -> TmdbCatalogImportServlet (session, rôle EMPLOYE, CSRF, validation)
+       -> TmdbApiClient (HTTP serveur-à-serveur + JWT RS256)
+            -> API /api/internal/tmdb/*
+       -> FilmDAO / JPA (enregistrement du film dans l'application principale)
+```
+
+Le parcours d'import conserve les pages de revue et de suggestions. Il ne
+contourne pas le rôle, la validation ni le jeton CSRF de l'application
+principale. Le JWT de cinq minutes permet à l'API d'autoriser ces appels internes
+sans partager la session HTTP du navigateur.
+
+## Limites constatées
+
+- Il s'agit d'une API ciblée TMDB, pas d'une API REST CRUD pour les réservations,
+  séances ou utilisateurs.
+- La route publique de bande-annonce conserve le comportement sans session.
+- Les deux WAR doivent être déployés et configurés séparément ; l'indisponibilité
+  de l'API rend indisponibles les appels TMDB et l'import, mais les pages
+  restantes de l'application principale sont distinctes.
+- Aucun paiement, panier, hold temporaire de sièges ou générateur de salle 3D
+  n'est implémenté.
 
 ## Sources examinées
 

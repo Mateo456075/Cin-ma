@@ -2,7 +2,15 @@
 
 Bibliothèque cliente Java (SDK officiel sous forme de fichier JAR) permettant aux applications clientes de communiquer de manière typée, robuste et sécurisée avec l'API REST Cynemma (`cynemma-api`).
 
-## Coordonnées Maven
+## Installation
+
+Depuis ce dossier, compilez et installez le JAR dans le dépôt Maven local :
+
+```bash
+mvn clean install
+```
+
+Le module requiert Java 21 et Maven. Ajoutez ensuite cette dépendance au projet consommateur :
 
 ```xml
 <dependency>
@@ -26,7 +34,7 @@ Le SDK encapsule et type l'ensemble des endpoints réels de l'API Cynemma :
 
 | Méthode HTTP | Chemin Endpoint | Authentification | Service SDK | Description |
 |:---|:---|:---|:---|:---|
-| `GET` | `/api/health` | Public | `client.health().checkHealth()` | État de santé du service et de la base MariaDB. |
+| `GET` | `/api/health` | Public | `client.health().checkHealth()` | État de santé du service et de la base MySQL. |
 | `GET` | `/api/trailer?film={titre}&year={annee}` | Public | `client.trailers().getTrailer(film, year)` | Recherche de bande-annonce YouTube. |
 | `GET` | `/api/internal/tmdb/now-playing` | Bearer JWT (`EMPLOYE`) | `client.tmdb().getNowPlaying()` | Suggestions de films TMDB à l'affiche. |
 | `GET` | `/api/internal/tmdb/movies/{tmdbId}` | Bearer JWT (`EMPLOYE`) | `client.tmdb().getMovieDetails(tmdbId)` | Fiche détaillée TMDB d'un film. |
@@ -35,10 +43,9 @@ Le SDK encapsule et type l'ensemble des endpoints réels de l'API Cynemma :
 
 ---
 
-## Documentation détaillée
+## Guides
 
-- [Guide d'installation](file:///Volumes/MateoDISQ/Cin-ma/cynemma-api-client/INSTALLATION.md) : Prérequis, dépendances et build Maven.
-- [Guide d'utilisation](file:///Volumes/MateoDISQ/Cin-ma/cynemma-api-client/UTILISATION.md) : Instanciation, configuration du builder, exemples d'appels.
-- [Authentification et Sécurité](file:///Volumes/MateoDISQ/Cin-ma/cynemma-api-client/AUTHENTIFICATION.md) : Gestion des tokens JWT RS256 et politique de sécurité réseau (loopback / HTTPS).
-- [Gestion des Exceptions](file:///Volumes/MateoDISQ/Cin-ma/cynemma-api-client/EXCEPTIONS.md) : Hiérarchie typée des erreurs HTTP et réseau.
-- [Architecture technique](file:///Volumes/MateoDISQ/Cin-ma/cynemma-api-client/ARCHITECTURE.md) : Conception logicielle, découplage et structure interne du module.
+- [Utilisation](UTILISATION.md) : création du client et appels disponibles.
+- [Authentification et sécurité réseau](AUTHENTIFICATION.md) : fourniture de jetons et règles d'URL.
+- [Exceptions](EXCEPTIONS.md) : erreurs HTTP et réseau exposées par le client.
+- [Architecture](ARCHITECTURE.md) : organisation du module et flux d'une requête.

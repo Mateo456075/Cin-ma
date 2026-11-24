@@ -1,0 +1,94 @@
+
+@startuml
+title Cynemma API - Diagramme de séquence
+
+autonumber
+
+actor "Client HTTP" as Client
+
+box "Cynemma API - Tomcat 11"
+    participant "JwtSecurityFilter" as Filter
+    participant "JwtTokenVerifier" as Verifier
+    participant "HealthServlet" as Health
+    participant "TrailerServlet" as Trailer
+    participant "InternalTmdbServlet" as Internal
+    participant "TmdbService" as Service
+    participant "TmdbCacheDAO" as DAO
+end box
+
+database "MySQL\n tmdb_cache" as DB
+participant "TMDB API" as TMDB
+
+== Vérification de santé ==
+
+Client -> Health : GET /api/health
+Health --> Client : HTTP 200 + JSON
+
+== Récupération d'une bande-annonce ==
+
+Client -> Trailer : GET /api/trailer?film=Interstellar
+
+Trailer -> Trailer : Vérification du paramètre film
+
+alt Paramètre film absent ou invalide
+    Trailer --> Client : HTTP 400 + JSON
+else Paramètres valides
+    Trailer -> Service : getTrailerKey(film, year)
+
+    Service -> DAO : Recherche du cache
+    DAO -> DB : SELECT tmdb_cache
+    DB --> DAO : Résultat
+
+    alt Cache valide
+        DAO --> Service : Bande-annonce en cache
+    else Cache absent ou expiré
+        Service -> TMDB : Recherche du film
+        TMDB --> Service : Identifiant TMDB
+
+        Service -> TMDB : Recherche des vidéos
+        TMDB --> Service : Liste des vidéos
+
+        Service -> Service : Recherche bande-annonce YouTube\nFrançais puis anglais
+
+        Service -> DAO : Enregistrement du résultat
+        DAO -> DB : INSERT / UPDATE
+        DB --> DAO : Confirmation
+        DAO --> Service : Résultat enregistré
+    end
+
+    Service --> Trailer : Résultat
+    Trailer --> Client : Réponse JSON
+end
+
+== Accès à une route interne sécurisée ==
+
+Client -> Filter : GET /api/internal/tmdb/now-playing\nAuthorization: Bearer JWT
+
+Filter -> Filter : Extraction du Bearer Token
+
+alt Token absent ou invalide
+    Filter --> Client : HTTP 401
+else Token présent
+    Filter -> Verifier : Vérification JWT RS256
+    Verifier --> Filter : Résultat de vérification
+
+    alt Signature ou token invalide
+        Filter --> Client : HTTP 401
+    else Token valide
+        Filter -> Filter : Vérification du rôle EMPLOYE
+
+        alt Rôle insuffisant
+            Filter --> Client : HTTP 403
+        else Rôle autorisé
+            Filter -> Internal : Transmission de la requête
+            Internal -> Service : Traitement de la demande TMDB
+            Service -> TMDB : Requête externe
+            TMDB --> Service : Données JSON
+            Service --> Internal : Résultat
+            Internal --> Filter : Réponse JSON
+            Filter --> Client : HTTP 200
+        end
+    end
+end
+
+@enduml

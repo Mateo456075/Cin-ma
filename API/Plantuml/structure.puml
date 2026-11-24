@@ -1,0 +1,103 @@
+
+@startuml
+title Cynemma API - Diagramme de classes
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "fr.turgot.api.controller" {
+
+    class HealthServlet {
+        +doGet(request, response)
+    }
+
+    class TrailerServlet {
+        +doGet(request, response)
+    }
+
+    class InternalTmdbServlet {
+        +doGet(request, response)
+        +doPost(request, response)
+    }
+}
+
+package "fr.turgot.api.security" {
+
+    class JwtSecurityFilter {
+        +doFilter(request, response, chain)
+    }
+
+    class JwtTokenVerifier {
+        +verify(token)
+    }
+}
+
+package "fr.turgot.api.service" {
+
+    class TmdbService {
+        +getTrailerKey(film, year)
+    }
+}
+
+package "fr.turgot.api.dao" {
+
+    class TmdbCacheDAO {
+        +find(...)
+        +save(...)
+    }
+}
+
+package "fr.turgot.api.config" {
+
+    class LocalConfiguration {
+        +loadConfiguration()
+    }
+}
+
+package "Infrastructure externe" {
+
+    class MySQL {
+        tmdb_cache
+    }
+
+    class TMDB_API {
+        HTTPS / JSON
+    }
+
+    class Tomcat_11
+}
+
+HealthServlet ..> LocalConfiguration
+TrailerServlet --> TmdbService
+InternalTmdbServlet --> TmdbService
+
+JwtSecurityFilter --> JwtTokenVerifier
+JwtSecurityFilter ..> InternalTmdbServlet : protege
+
+TmdbService --> TmdbCacheDAO
+TmdbCacheDAO --> MySQL : JDBC / JNDI
+TmdbService --> TMDB_API : HTTPS
+
+Tomcat_11 --> HealthServlet
+Tomcat_11 --> TrailerServlet
+Tomcat_11 --> InternalTmdbServlet
+Tomcat_11 --> JwtSecurityFilter
+
+note right of JwtSecurityFilter
+    JWT RS256
+    Controle des autorisations
+end note
+
+note bottom of TrailerServlet
+    GET /api/trailer
+    Route publique
+end note
+
+note bottom of InternalTmdbServlet
+    GET /api/internal/tmdb/...
+    POST /api/internal/tmdb/...
+    Routes internes
+end note
+
+@enduml

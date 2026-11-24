@@ -1,221 +1,330 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: Cynemma API
-  version: "1.0"
-  description: >-
-    API HTTP du projet Cynemma. Les routes de lecture et les opérations
-    d'intégration TMDB décrites ici sont implémentées dans ce projet.
+  title: Cynemma REST API
+  description: |
+    API REST officielle de la plateforme Cynemma.
+
+    Elle fournit les services de vérification de disponibilité, de recherche de bandes-annonces
+    et d'intégration interne avec le catalogue The Movie Database (TMDB) réservé aux employés.
+  version: 1.0.0
+
 servers:
+  - url: http://localhost:8081/cynemma-api
+    description: Serveur de développement local Tomcat (port 8081)
   - url: http://localhost:8080/cynemma-api
-    description: Contexte indicatif pour le WAR cynemma-api en développement.
+    description: Serveur local Tomcat standard (port 8080)
+
 tags:
   - name: Santé
-    description: Disponibilité du projet API et de sa connexion de base de données.
+    description: Vérification de l'état du microservice et de la connexion à la base de données MySQL.
   - name: Bandes-annonces
-    description: Recherche publique d'une bande-annonce YouTube avec TMDB.
-  - name: Import TMDB interne
-    description: Opérations de service utilisées par l'application principale pour l'import employé.
+    description: Recherche publique de bandes-annonces vidéo hébergées sur YouTube.
+  - name: Catalogue TMDB (Interne)
+    description: Endpoints sécurisés réservés aux employés pour l'import et la gestion des films TMDB.
+
 paths:
   /api/health:
     get:
       tags:
         - Santé
-      summary: Vérifier l'état de l'API et de MySQL
-      operationId: getHealth
-      security: []
+      summary: Vérification de l'état de santé du service
+      description: |
+        Interroge le service pour tester la connectivité à la base de données MySQL
+        (`jdbc/cynema` via `TmdbCacheDAO`). Endpoint public sans authentification.
+      operationId: checkHealth
       responses:
-        "200":
-          description: L'API répond et la base de données est accessible.
+        '200':
+          description: Le service et la base de données sont opérationnels (UP).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponse"
-              example:
-                status: UP
-                database: UP
-        "503":
-          description: La base de données n'est pas accessible.
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Service fonctionnel
+                  value:
+                    status: UP
+                    database: UP
+        '503':
+          description: La base de données MySQL est inaccessible (DOWN).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponse"
-              example:
-                status: DOWN
-                database: DOWN
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unhealthy:
+                  summary: Base de données déconnectée
+                  value:
+                    status: DOWN
+                    database: DOWN
+
   /api/trailer:
     get:
       tags:
         - Bandes-annonces
-      summary: Rechercher une bande-annonce
-      description: >-
-        Recherche d'abord dans le cache local, puis auprès de TMDB si nécessaire.
-        Aucune authentification de session ou de rôle n'est vérifiée.
+      summary: Recherche de bande-annonce YouTube
+      description: |
+        Recherche la clé YouTube d'une bande-annonce associée à un film donné,
+        avec filtrage facultatif par année de sortie. Endpoint public.
       operationId: getTrailer
-      security: []
       parameters:
         - name: film
           in: query
           required: true
-          description: >-
-            Titre du film. Les espaces de début/fin sont retirés et les espaces
-            consécutifs sont normalisés. Le titre ne doit pas être blanc et ne
-            peut pas dépasser 255 caractères. Si year est fourni, la clé de
-            cache inclut aussi l'année et sa limite de 255 caractères peut
-            réduire la longueur effective admissible du titre.
+          description: Titre du film recherché.
           schema:
             type: string
             minLength: 1
-            maxLength: 255
-          example: Interstellar
+          example: Inception
         - name: year
           in: query
           required: false
-          description: >-
-            Année de sortie utilisée pour préciser la recherche TMDB. Une valeur
-            absente ou vide est traitée comme si le paramètre n'était pas fourni.
+          description: Année de sortie du film (doit être un entier compris entre 1888 et 9999).
           schema:
             type: integer
             minimum: 1888
             maximum: 9999
-          example: 2014
+          example: 2010
       responses:
-        "200":
-          description: Bande-annonce trouvée.
+        '200':
+          description: Bande-annonce trouvée avec succès.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TrailerResponse"
+                $ref: '#/components/schemas/TrailerResponse'
               example:
-                key: zSWdZVtXT7E
-                watchUrl: https://www.youtube.com/watch?v=zSWdZVtXT7E
-                embedUrl: https://www.youtube-nocookie.com/embed/zSWdZVtXT7E
-        "400":
-          description: Paramètre film absent, année non numérique ou valeur invalide.
+                key: dQw4w9WgXcQ
+                watchUrl: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+                embedUrl: https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ
+        '400':
+          description: Paramètre manquant ou invalide (film manquant ou année hors plage 1888-9999).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
-                filmMissing:
+                missingFilm:
+                  summary: Film manquant
                   value:
-                    erreur: "Paramètre 'film' manquant"
-                yearInvalid:
+                    erreur: Paramètre 'film' manquant
+                invalidYear:
+                  summary: Année invalide
                   value:
-                    erreur: "Paramètre 'year' invalide"
-        "404":
-          description: Aucune bande-annonce disponible pour le titre recherché.
+                    erreur: L'année doit être comprise entre 1888 et 9999.
+        '404':
+          description: Aucune bande-annonce disponible pour ce film.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 erreur: Aucune bande-annonce disponible
-        "500":
-          description: Erreur SQL/JNDI ou configuration TMDB manquante.
+        '500':
+          description: Erreur interne lors de la consultation de la base ou de l'exécution.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 erreur: Erreur interne
-        "502":
-          description: Erreur de communication avec TMDB ou réponse externe invalide.
+        '502':
+          description: Échec de communication avec le service tiers TMDB.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 erreur: Le service TMDB est temporairement indisponible
-        "503":
-          description: Recherche interrompue ou clé TMDB non configurée.
+        '503':
+          description: Service des bandes-annonces non configuré (clé TMDB absente) ou recherche interrompue.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
-                erreur: La recherche de bande-annonce a été interrompue
-        "504":
-          description: Délai d'attente de TMDB dépassé.
+                erreur: Le service des bandes-annonces n'est pas configuré
+        '504':
+          description: Le délai d'attente vers l'API TMDB a expiré (timeout).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 erreur: Le service TMDB est temporairement indisponible
+
   /api/internal/tmdb/now-playing:
     get:
       tags:
-        - Import TMDB interne
-      summary: Lister les films TMDB actuellement à l'affiche
-      operationId: getTmdbNowPlaying
+        - Catalogue TMDB (Interne)
+      summary: Liste des films TMDB actuellement à l'affiche
+      description: |
+        Récupère la sélection des films récemment sortis ou actuellement en salle fournie par TMDB.
+        Nécessite une authentification Bearer JWT avec le rôle `EMPLOYE`.
+      operationId: getNowPlayingMovies
       security:
-        - InternalServiceToken: []
+        - bearerAuth: []
       responses:
-        "200":
-          description: Liste des films de la première page renvoyée par TMDB.
+        '200':
+          description: Liste des films à l'affiche récupérée avec succès.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - results
-                properties:
-                  results:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/TmdbMovie"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-        "502":
-          $ref: "#/components/responses/TmdbFailure"
-        "504":
-          $ref: "#/components/responses/TmdbTimeout"
+                $ref: '#/components/schemas/NowPlayingResponse'
+              example:
+                results:
+                  - tmdbId: 693134
+                    title: Dune : Deuxième Partie
+                    overview: Paul Atréides s'unit à Chani et aux Fremen pour mener la révolte contre ceux qui ont anéanti sa famille.
+                    releaseDate: "2024-02-27"
+                    posterPath: /8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
+                    posterUrl: https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
+                    runtimeMinutes: 166
+                    director: Denis Villeneuve
+                    genres: Science-Fiction, Aventure
+        '401':
+          description: Jeton JWT absent, malformé, expiré ou signature invalide.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Jeton d'accès invalide
+        '403':
+          description: Jeton valide mais rôle insuffisant (l'utilisateur n'a pas le rôle EMPLOYE).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Rôle employé requis
+        '500':
+          description: Erreur interne serveur.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Erreur interne
+        '502':
+          description: Erreur amont lors de l'appel à l'API TMDB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Le service TMDB est temporairement indisponible
+        '503':
+          description: Clé TMDB ou clé publique JWT non configurée sur le serveur.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                jwtNotConfigured:
+                  summary: Clé publique JWT non configurée
+                  value:
+                    erreur: La vérification des jetons n'est pas configurée
+                tmdbNotConfigured:
+                  summary: Clé TMDB non configurée
+                  value:
+                    erreur: Le service TMDB n'est pas configuré
+        '504':
+          description: Timeout réseau vers TMDB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Le service TMDB est temporairement indisponible
+
   /api/internal/tmdb/movies/{tmdbId}:
     get:
       tags:
-        - Import TMDB interne
-      summary: Récupérer les détails d'un film TMDB
-      operationId: getTmdbMovie
+        - Catalogue TMDB (Interne)
+      summary: Détails complets d'un film TMDB
+      description: |
+        Récupère les informations détaillées d'un film (synopsis, durée, réalisateur, genres, poster)
+        à partir de son identifiant numérique TMDB positif.
+        Nécessite un jeton Bearer JWT avec le rôle `EMPLOYE`.
+      operationId: getMovieDetails
       security:
-        - InternalServiceToken: []
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TmdbId"
+        - name: tmdbId
+          in: path
+          required: true
+          description: Identifiant numérique positif du film TMDB.
+          schema:
+            type: integer
+            minimum: 1
+          example: 693134
       responses:
-        "200":
-          description: Détails TMDB, incluant la durée, le réalisateur et les genres.
+        '200':
+          description: Détails du film récupérés avec succès.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TmdbMovie"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-        "502":
-          $ref: "#/components/responses/TmdbFailure"
-        "504":
-          $ref: "#/components/responses/TmdbTimeout"
+                $ref: '#/components/schemas/TmdbMovie'
+              example:
+                tmdbId: 693134
+                title: Dune : Deuxième Partie
+                overview: Paul Atréides s'unit à Chani et aux Fremen...
+                releaseDate: "2024-02-27"
+                posterPath: /8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
+                posterUrl: https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
+                runtimeMinutes: 166
+                director: Denis Villeneuve
+                genres: Science-Fiction, Aventure
+        '400':
+          description: Identifiant TMDB invalide ou hors limites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Identifiant TMDB invalide
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Route TMDB interne introuvable ou film inexistant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Route TMDB interne introuvable
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutError'
+
   /api/internal/tmdb/movies/{tmdbId}/poster:
     get:
       tags:
-        - Import TMDB interne
-      summary: Télécharger l'affiche TMDB d'un film
-      operationId: getTmdbMoviePoster
+        - Catalogue TMDB (Interne)
+      summary: Téléchargement binaire de l'affiche HD
+      description: |
+        Télécharge le flux binaire de l'affiche officielle du film au format `image/jpeg` ou `image/png`.
+        Nécessite un jeton Bearer JWT avec le rôle `EMPLOYE`.
+      operationId: getMoviePoster
       security:
-        - InternalServiceToken: []
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TmdbId"
+        - name: tmdbId
+          in: path
+          required: true
+          description: Identifiant numérique positif du film TMDB.
+          schema:
+            type: integer
+            minimum: 1
+          example: 693134
       responses:
-        "200":
-          description: Image JPEG ou PNG à enregistrer par l'application principale.
+        '200':
+          description: Flux binaire de l'affiche haute définition.
           content:
             image/jpeg:
               schema:
@@ -225,113 +334,174 @@ paths:
               schema:
                 type: string
                 format: binary
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-        "404":
-          description: Aucune affiche TMDB n'est disponible pour ce film.
+        '400':
+          description: Identifiant TMDB invalide.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
-        "502":
-          $ref: "#/components/responses/TmdbFailure"
-        "504":
-          $ref: "#/components/responses/TmdbTimeout"
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Identifiant TMDB invalide
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Aucune affiche disponible pour ce film sur TMDB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Aucune affiche disponible
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutError'
+
   /api/internal/tmdb/movies/{tmdbId}/trailer-cache:
     post:
       tags:
-        - Import TMDB interne
-      summary: Mettre en cache la bande-annonce d'un film importé
-      operationId: cacheTmdbMovieTrailer
+        - Catalogue TMDB (Interne)
+      summary: Mise en cache préalable d'une bande-annonce
+      description: |
+        Déclenche la recherche et l'enregistrement de la clé YouTube de bande-annonce
+        dans le cache de la base de données locale (`tmdb_cache`).
+
+        Le corps de la requête doit être strictement au format JSON encodé en UTF-8
+        (`Content-Type: application/json; charset=UTF-8`) et sa taille ne doit pas dépasser 4096 octets.
+
+        Nécessite un jeton Bearer JWT avec le rôle `EMPLOYE`.
+      operationId: cacheMovieTrailer
       security:
-        - InternalServiceToken: []
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TmdbId"
+        - name: tmdbId
+          in: path
+          required: true
+          description: Identifiant numérique positif du film TMDB.
+          schema:
+            type: integer
+            minimum: 1
+          example: 693134
       requestBody:
         required: true
+        description: Objet JSON contenant le titre officiel du film pour la recherche.
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - title
-              properties:
-                title:
-                  type: string
-                  minLength: 1
-                  maxLength: 255
+              $ref: '#/components/schemas/TrailerCacheRequest'
             example:
-              title: Interstellar
+              title: Dune : Deuxième Partie
       responses:
-        "200":
-          description: Recherche effectuée et cache mis à jour si nécessaire.
+        '200':
+          description: Traitement effectué avec succès, retourne la disponibilité de la bande-annonce.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - available
-                properties:
-                  available:
-                    type: boolean
+                $ref: '#/components/schemas/TrailerCacheResponse'
               example:
                 available: true
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-        "413":
-          description: Corps de requête de plus de 4096 octets.
+        '400':
+          description: Requête malformée (corps non JSON, titre manquant ou invalide, identifiant non positif).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
-        "415":
-          description: Le Content-Type doit être application/json avec UTF-8 ou sans paramètre charset.
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTitleField:
+                  summary: Champ title non chaîne
+                  value:
+                    erreur: Le champ title doit être une chaîne de caractères
+                invalidJsonBody:
+                  summary: JSON invalide
+                  value:
+                    erreur: Le corps doit contenir un objet JSON UTF-8 valide
+                invalidMovieTitle:
+                  summary: Titre vide ou invalide
+                  value:
+                    erreur: Titre de film invalide
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Route TMDB interne introuvable.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Erreur SQL/JNDI pendant l'accès au cache.
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Route TMDB interne introuvable
+        '413':
+          description: Corps de requête trop volumineux (dépasse la limite stricte de 4096 octets).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
-        "502":
-          $ref: "#/components/responses/TmdbFailure"
-        "504":
-          $ref: "#/components/responses/TmdbTimeout"
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Corps de requête trop volumineux
+        '415':
+          description: Type de média non supporté (le Content-Type doit être application/json en UTF-8).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Le corps doit être en JSON UTF-8
+        '500':
+          description: Erreur lors de l'enregistrement dans la base de données locale.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                erreur: Erreur interne
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutError'
+
 components:
   securitySchemes:
-    InternalServiceToken:
+    bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: >-
-        JWT RS256 de courte durée signé par l'application principale. L'API
-        exige iss=cynemma-main, aud=cynemma-api et role=EMPLOYE. Le jeton est
-        échangé entre serveurs uniquement et ne doit pas être exposé au navigateur.
-  parameters:
-    TmdbId:
-      name: tmdbId
-      in: path
-      required: true
-      description: Identifiant TMDB strictement positif.
-      schema:
-        type: integer
-        minimum: 1
+      description: |
+        Jeton JWT signé avec l'algorithme RS256 (clé privée RSA 3072 bits PKCS#8).
+
+        Contraintes validées par `JwtTokenVerifier` :
+        - Algorithme dans l'en-tête : `RS256`
+        - Émetteur (`iss`) : `cynemma-main`
+        - Audience (`aud`) : `cynemma-api`
+        - Sujet (`sub`) : identifiant ou login non vide
+        - Rôle (`role`) : `EMPLOYE` (obligatoire pour les routes `/api/internal/*`)
+        - Durée de vie maximale : 300 secondes (5 minutes)
+        - Tolérance d'horloge (`iat`) : au plus 30 secondes dans le futur
+
   schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+      properties:
+        status:
+          type: string
+          description: Statut opérationnel global du service.
+          enum: [UP, DOWN]
+          example: UP
+        database:
+          type: string
+          description: Statut de la connexion au pool de données MySQL via `TmdbCacheDAO`.
+          enum: [UP, DOWN]
+          example: UP
+
     TrailerResponse:
       type: object
       required:
@@ -341,18 +511,19 @@ components:
       properties:
         key:
           type: string
-          minLength: 11
-          maxLength: 11
-          pattern: "^[A-Za-z0-9_-]{11}$"
-          example: zSWdZVtXT7E
+          description: Identifiant vidéo unique YouTube.
+          example: dQw4w9WgXcQ
         watchUrl:
           type: string
           format: uri
-          example: https://www.youtube.com/watch?v=zSWdZVtXT7E
+          description: URL complète de visionnage direct sur YouTube.
+          example: https://www.youtube.com/watch?v=dQw4w9WgXcQ
         embedUrl:
           type: string
           format: uri
-          example: https://www.youtube-nocookie.com/embed/zSWdZVtXT7E
+          description: URL sécurisée d'intégration (iframe) via le domaine sans cookie de YouTube.
+          example: https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ
+
     TmdbMovie:
       type: object
       required:
@@ -368,90 +539,137 @@ components:
       properties:
         tmdbId:
           type: integer
-          example: 157336
+          description: Identifiant unique attribué par TMDB.
+          example: 693134
         title:
           type: string
-          example: Interstellar
+          description: Titre officiel du film.
+          example: Dune : Deuxième Partie
         overview:
           type: string
+          description: Synopsis résumé de l'intrigue.
+          example: Paul Atréides s'unit à Chani et aux Fremen...
         releaseDate:
           type: string
-          example: "2014-11-05"
+          format: date
+          description: Date de sortie au format ISO-8601 (AAAA-MM-JJ).
+          example: "2024-02-27"
         posterPath:
           type: string
           nullable: true
-          example: /gEU2QniE6E77NI6lCU6MxlNBvIx.jpg
+          description: Chemin relatif de l'affiche sur le CDN TMDB.
+          example: /8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
         posterUrl:
           type: string
           format: uri
           nullable: true
+          description: URL absolue CDN vers l'affiche en résolution w500.
+          example: https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg
         runtimeMinutes:
           type: integer
           nullable: true
-          example: 169
+          description: Durée totale du métrage en minutes.
+          example: 166
         director:
           type: string
+          description: Nom complet du ou des réalisateurs.
+          example: Denis Villeneuve
         genres:
           type: string
-          description: Noms des genres séparés par des virgules.
-    HealthResponse:
+          description: Liste des genres cinématographiques séparés par des virgules.
+          example: Science-Fiction, Aventure
+
+    NowPlayingResponse:
       type: object
       required:
-        - status
-        - database
+        - results
       properties:
-        status:
+        results:
+          type: array
+          description: Liste ordonnée des films proposés à l'affiche.
+          items:
+            $ref: '#/components/schemas/TmdbMovie'
+
+    TrailerCacheRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
           type: string
-          enum:
-            - UP
-            - DOWN
-        database:
-          type: string
-          enum:
-            - UP
-            - DOWN
-    ApiError:
+          description: Titre exact du film utilisé pour rechercher et synchroniser sa bande-annonce.
+          minLength: 1
+          example: Dune : Deuxième Partie
+
+    TrailerCacheResponse:
+      type: object
+      required:
+        - available
+      properties:
+        available:
+          type: boolean
+          description: Indique si une bande-annonce YouTube a pu être localisée et enregistrée en cache.
+          example: true
+
+    ErrorResponse:
       type: object
       required:
         - erreur
       properties:
         erreur:
           type: string
+          description: Message descriptif de l'anomalie ou du refus d'accès en français.
+          example: Paramètre 'film' manquant
+
   responses:
-    BadRequest:
-      description: Paramètre ou corps de requête invalide.
+    UnauthorizedError:
+      description: Jeton d'accès JWT absent ou non valide.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
-    Unauthorized:
-      description: JWT absent, invalide ou expiré.
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            erreur: Jeton d'accès invalide
+
+    ForbiddenError:
+      description: Accès interdit (rôle EMPLOYE requis).
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
-    Forbidden:
-      description: JWT valide mais rôle employé absent.
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            erreur: Rôle employé requis
+
+    BadGatewayError:
+      description: Le service externe TMDB a retourné une erreur ou est injoignable.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
-    ServiceUnavailable:
-      description: >-
-        Clé de vérification JWT ou clé TMDB non configurée, ou requête interrompue.
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            erreur: Le service TMDB est temporairement indisponible
+
+    ServiceUnavailableError:
+      description: Le service ou sa configuration de sécurité n'est pas opérationnel.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
-    TmdbFailure:
-      description: TMDB ou son serveur d'affiches a échoué.
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            serviceNotConfigured:
+              summary: Clé TMDB non configurée
+              value:
+                erreur: Le service TMDB n'est pas configuré
+            jwtNotConfigured:
+              summary: Clé JWT non configurée
+              value:
+                erreur: La vérification des jetons n'est pas configurée
+
+    GatewayTimeoutError:
+      description: Le délai de connexion ou de lecture vers l'API TMDB a expiré.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
-    TmdbTimeout:
-      description: Le délai d'attente de TMDB est dépassé.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            erreur: Le service TMDB est temporairement indisponible
